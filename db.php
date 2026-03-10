@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once '/home/1280766.cloudwaysapps.com/awhfqygezp/private_html/config.php';
 
 function getDB(): PDO {
     static $pdo = null;
@@ -39,19 +39,12 @@ function installSchema(): void {
     ");
 }
 
-// Auto-install schema on first load
 installSchema();
 
-// Migration: add end_of_life column to existing installs
 try {
     getDB()->exec("ALTER TABLE assets ADD COLUMN end_of_life DATE DEFAULT NULL AFTER purchase_date");
-} catch (PDOException $e) {
-    // Column already exists — safe to ignore
-}
+} catch (PDOException $e) {}
 
-// Migration: add status column to existing installs
 try {
     getDB()->exec("ALTER TABLE assets ADD COLUMN status VARCHAR(20) DEFAULT 'active' AFTER department");
-} catch (PDOException $e) {
-    // Column already exists — safe to ignore
-}
+} catch (PDOException $e) {}

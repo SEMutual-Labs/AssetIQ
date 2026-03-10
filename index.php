@@ -823,69 +823,13 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
 .users-empty { text-align:center; padding:48px 20px; color:var(--muted); }
 .users-empty h3 { font-size:17px; font-weight:700; color:var(--text); margin:12px 0 6px; }
 
-.intune-setup-card {
-  background: linear-gradient(145deg, #0f1219, #0c0e16);
-  border: 1px solid var(--border);
-  border-radius: 16px; padding: 28px 24px; max-width: 600px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 8px 32px rgba(0,0,0,0.4);
-}
-.intune-setup-icon {
-  width: 56px; height: 56px; border-radius: 14px;
-  background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 16px; color: var(--accent);
-  box-shadow: 0 0 20px rgba(0,229,255,0.08);
-}
-.intune-setup-card h3 { font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-.intune-setup-card p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
-.intune-setup-card code {
-  font-family: 'JetBrains Mono', monospace; font-size: 11px;
-  background: var(--surface2); border: 1px solid var(--border2);
-  padding: 2px 6px; border-radius: 4px; color: var(--accent);
-}
-.setup-steps { display: flex; flex-direction: column; gap: 14px; }
-.setup-step  { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.5; }
-.step-num {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #000; font-size: 11px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
-  box-shadow: 0 0 12px rgba(0,229,255,0.25);
-}
-.intune-device-card {
-  background: linear-gradient(145deg, #0f1219, #0c0e15);
-  border: 1px solid var(--border);
-  border-radius: 13px; padding: 14px 16px; margin-bottom: 8px;
-  display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
-  transition: border-color .15s, box-shadow .15s;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 8px rgba(0,0,0,0.3);
-}
-.intune-device-card:hover  { border-color: rgba(0,229,255,0.3); }
-.intune-device-card.selected { border-color: var(--accent); background: rgba(0,229,255,0.04); box-shadow: 0 0 20px rgba(0,229,255,0.08); }
-.intune-device-card.already-exists { opacity: 0.45; }
-.intune-check {
-  width: 20px; height: 20px; border-radius: 6px;
-  border: 1.5px solid var(--border2); flex-shrink: 0; margin-top: 2px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .15s; background: var(--surface2);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-}
-.intune-device-card.selected .intune-check {
-  background: var(--accent); border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(0,229,255,0.3);
-}
-.intune-device-info { flex: 1; min-width: 0; }
-.intune-device-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-.intune-device-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-.intune-badges { display: flex; flex-wrap: wrap; gap: 5px; }
 .compliance-compliant    { background:rgba(0,255,136,0.1);  color:var(--green);  border: 1px solid rgba(0,255,136,0.2); }
 .compliance-noncompliant { background:rgba(255,59,92,0.1);  color:var(--red);    border: 1px solid rgba(255,59,92,0.2); }
 .compliance-unknown      { background:rgba(74,84,104,0.15); color:var(--muted);  border: 1px solid rgba(74,84,104,0.2); }
 .select-all-row { display:flex; align-items:center; gap:10px; padding:8px 0 12px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
 
 /* MOUSE SPOTLIGHT */
-.asset-card,.stat-card,.user-card,.intune-device-card { --mx:50%;--my:50%; }
+.asset-card,.stat-card,.user-card { --mx:50%;--my:50%; }
 .card-spotlight {
   position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
   background:radial-gradient(200px circle at var(--mx) var(--my),rgba(0,229,255,0.075) 0%,transparent 65%);
@@ -899,7 +843,7 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
   );
 }
 .asset-card:hover .card-spotlight,.stat-card:hover .card-spotlight,
-.user-card:hover .card-spotlight,.intune-device-card:hover .card-spotlight { opacity:1; }
+.asset-card:hover .card-spotlight,.stat-card:hover .card-spotlight,
 .asset-card:hover { border-color:rgba(0,229,255,0.22) !important; }
 .stat-card.clickable:hover { border-color: color-mix(in srgb, var(--c,var(--accent)) 45%, transparent) !important; }
 
@@ -1722,4 +1666,2021 @@ input[type="checkbox"] {
   </div>
 </div>
 
-<!-- INTUNE SYNC PAGE -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API          = 'api/assets.php';
+const SETTINGS_API = 'api/settings.php';
+const LINKS_API    = 'api/links.php';
+const FIELDS_API   = 'api/fields.php';
+const T={Laptop:'badge-laptop',Desktop:'badge-desktop',Monitor:'badge-monitor',Peripheral:'badge-peripheral','Docking Station':'badge-docking',Printer:'badge-printer',Camera:'badge-camera'};
+let editingId=null, sortKey='id', sortAsc=true;
+let scannerActive=false, html5QrCode=null, searchTimer=null;
+
+async function apiFetch(url, opts={}) {
+  try {
+    const res = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts});
+    if (!res.ok) {
+      let msg = 'API error ' + res.status;
+      try { const d = await res.json(); msg = d.error || msg; } catch(_) {}
+      throw new Error(msg);
+    }
+    return await res.json();
+  } catch(e) {
+    if (e.name !== 'AbortError') toast(e.message, 'error');
+    throw e;
+  }
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  ['nav-','dnav-'].forEach(pre => {
+    document.querySelectorAll('[id^="'+pre+'"]').forEach(b=>{
+      b.classList.remove('active','nav-flash');
+    });
+    const el = document.getElementById(pre+name);
+    if(el) {
+      el.classList.add('active');
+      if(el.tagName === 'BUTTON') {
+        requestAnimationFrame(() => {
+          el.classList.add('nav-flash');
+          el.addEventListener('animationend', () => el.classList.remove('nav-flash'), {once:true});
+        });
+      }
+    }
+  });
+  const page = document.getElementById('page-'+name);
+  if(page) page.classList.add('active');
+  if(name==='dashboard') { loadDashboard(); checkAlerts(); }
+  if(name==='assets')    loadAssets();
+  if(name==='users')     loadUsers();
+  if(name==='archive')   loadArchive();
+  if(name==='activity')  loadActivity();
+  if(name==='reports')   loadReports();
+  if(name==='settings')  loadSettings();
+  if(name!=='scan' && scannerActive) stopScanner();
+}
+
+async function getAIPrice() {
+  const btn       = document.getElementById('ai-price-btn');
+  const resultEl  = document.getElementById('ai-price-result');
+
+  const name         = document.getElementById('f-name').value.trim();
+  const type         = document.getElementById('f-type').value;
+  const serial       = document.getElementById('f-serial').value.trim();
+  const purchaseDate = document.getElementById('f-date').value;  // fixed: was f-purchase
+  const notes        = document.getElementById('f-notes').value.trim();
+
+  if (!name && !serial) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<span style="color:var(--orange)">⚠ Please enter a name or serial number first.</span>';
+    return;
+  }
+
+  const assetAge = purchaseDate
+    ? (() => { const yrs = ((Date.now() - new Date(purchaseDate)) / 31557600000).toFixed(1); return `purchased ${purchaseDate} (${yrs} years ago)`; })()
+    : 'purchase date unknown';
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Estimating…`;
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;color:var(--muted)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      <div>
+        <div style="color:var(--text);font-weight:600;font-size:12px">Analysing asset…</div>
+        <div style="font-size:11px;margin-top:2px">Looking up <strong>${esc(name||serial)}</strong> · ${esc(type)} · ${assetAge}</div>
+      </div>
+    </div>`;
+
+  try {
+    const res = await fetch('api/ai_price.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, type, serial, purchaseDate, notes })
+    });
+
+    const est = await res.json();
+    if (!res.ok) throw new Error(est.error || 'Estimate failed');
+
+    const confidenceColor = {high:'var(--green)', medium:'var(--orange)', low:'var(--red)'}[est.confidence] || 'var(--muted)';
+    const confidenceLabel = {high:'High confidence', medium:'Medium confidence', low:'Low confidence'}[est.confidence] || '';
+
+    resultEl.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">
+          $${Number(est.low).toLocaleString()} – $${Number(est.high).toLocaleString()}
+          <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">${est.currency}</span>
+        </div>
+        <span style="font-size:10px;font-weight:600;color:${confidenceColor};background:${confidenceColor}18;padding:2px 8px;border-radius:20px">${confidenceLabel}</span>
+      </div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:8px">${est.reasoning}</div>
+      ${est.caveat ? `<div style="color:var(--orange);font-size:11px;margin-bottom:8px">⚠ ${est.caveat}</div>` : ''}
+      <button onclick="document.getElementById('f-cost').value='${est.midpoint}';document.getElementById('ai-price-result').style.display='none'" style="font-size:11px;padding:5px 10px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.2);border-radius:6px;color:var(--accent);cursor:pointer;font-weight:600">
+        Use midpoint ($${Number(est.midpoint).toLocaleString()})
+      </button>`;
+
+  } catch (err) {
+    resultEl.innerHTML = `<span style="color:var(--red)">⚠ ${err.message||'Could not get estimate — check your API key in config.php.'}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI Estimate`;
+  }
+}
+
+function goToAssets({type='', status='', dept=''}={}) {
+  const ft = document.getElementById('filter-type');
+  const fs = document.getElementById('filter-status');
+  const fd = document.getElementById('filter-dept');
+  const si = document.getElementById('search-input');
+  if (ft) ft.value = type;
+  if (fs) fs.value = status;
+  if (fd) fd.value = dept;
+  if (si) si.value = '';
+  // For EOL, sort by end_of_life ascending so most urgent appear first
+  if (status === 'eol') { sortKey = 'end_of_life'; sortAsc = true; }
+  showPage('assets');
+}
+
+async function loadDashboard() {
+  // Build stats URL with active date range
+  const statsUrl = buildStatsUrl();
+  let stats, recent;
+  try {
+    [stats,recent] = await Promise.all([
+      apiFetch(statsUrl),
+      apiFetch(API+'?sort=created_at&dir=desc')
+    ]);
+  } catch(e) {
+    document.getElementById('recent-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
+    return;
+  }
+  const cards=[
+    {label:'Total Assets', value:stats.total,       sub:stats.assigned+' assigned',  c:'var(--accent)', action:()=>goToAssets({})},
+    {label:'Unassigned',   value:stats.unassigned,  sub:'Available now',             c:'var(--orange)', action:()=>goToAssets({status:'unassigned'})},
+    {label:'Computers',    value:(stats.byType['Laptop']||0)+(stats.byType['Desktop']||0), sub:'Laptops & desktops', c:'var(--purple)', action:()=>goToAssets({type:'Laptop'})},
+    {label:'Retired',      value:stats.retired||0,  sub:'Decommissioned',            c:'var(--red)',    action:()=>goToAssets({status:'retired'})},
+    {label:'Total Value',  value:'$'+Number(stats.totalCost).toLocaleString('en-US',{maximumFractionDigits:0}), sub:'Inventory cost basis', c:'var(--green)'},
+  ];
+  document.getElementById('stats-grid').innerHTML=cards.map((card,i)=>
+    `<div class="stat-card${card.action?' clickable':''}" style="--c:${card.c}" ${card.action?`onclick="statCardActions[${i}]()"`:''}>
+      <div class="card-spotlight"></div>
+      <div class="stat-label">${card.label}</div>
+      <div class="stat-value">${card.value}</div>
+      <div class="stat-sub">${card.sub}</div>
+    </div>`).join('');
+  window.statCardActions = cards.map(card=>card.action||null);
+  // Update archived link pill
+  const arEl = document.getElementById('archived-pill');
+  if(arEl) arEl.textContent = (stats.archived||0) + ' archived';
+
+  // EOL banner
+  const expiringSoon = recent.filter(a => !a.eolOverride && eolStatus(a.endOfLife) !== null);
+  const critical     = expiringSoon.filter(a => !a.eolOverride && eolStatus(a.endOfLife) === 'critical');
+  const banner = document.getElementById('eol-banner-dash');
+  if (critical.length) {
+    banner.innerHTML = `<div class="eol-banner" onclick="goToAssets({status:'eol'})" style="cursor:pointer"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg> ${critical.length} asset${critical.length>1?'s':''} past end of life — replacement overdue <span style="font-weight:700;opacity:0.7;margin-left:4px">View →</span></div>`;
+  } else if (expiringSoon.length) {
+    banner.innerHTML = `<div class="eol-banner warn" onclick="goToAssets({status:'eol'})" style="cursor:pointer"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg> ${expiringSoon.length} asset${expiringSoon.length>1?'s':''} approaching end of life <span style="font-weight:700;opacity:0.7;margin-left:4px">View →</span></div>`;
+  } else {
+    banner.innerHTML = '';
+  }
+
+  await prefetchCustomFields(recent);
+  const slice=recent.slice(0,6);
+  document.getElementById('recent-list').innerHTML=slice.length?slice.map(a=>assetCard(a)).join(''):'<div class="empty-state"><h3>No assets yet</h3><p>Tap Add to get started.</p></div>';
+  document.getElementById('recent-tbody').innerHTML=slice.length?slice.map(a=>`<tr>
+    <td class="font-mono">${esc(a.id)}</td><td style="font-weight:600">${esc(a.name)}</td>
+    <td>${typeBadge(a.type)}</td>
+    <td>${a.assignedTo?esc(a.assignedTo):'<span style="color:var(--muted)">—</span>'}</td>
+    <td>${eolFlag(a.endOfLife)||statusBadge(a.assignedTo, a.status)}</td></tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:40px">No assets yet.</td></tr>`;
+}
+
+async function loadAssets() {
+  const q=document.getElementById('search-input')?.value||'';
+  const ft=document.getElementById('filter-type')?.value||'';
+  const fs=document.getElementById('filter-status')?.value||'';
+  const fd=document.getElementById('filter-dept')?.value||'';
+  const p=new URLSearchParams();
+  if(q)p.set('q',q); if(ft)p.set('type',ft); if(fs)p.set('status',fs); if(fd)p.set('dept',fd);
+  p.set('sort',sortKey); p.set('dir',sortAsc?'asc':'desc');
+  document.getElementById('assets-list').innerHTML='<div class="spinner"></div>';
+  document.getElementById('assets-tbody').innerHTML=`<tr><td colspan="8"><div class="spinner"></div></td></tr>`;
+  document.getElementById('asset-empty').style.display='none';
+  let assets;
+  try {
+    assets = await apiFetch(API+'?'+p.toString());
+  } catch(e) {
+    document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
+    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
+    return;
+  }
+  if(!assets.length){
+    document.getElementById('assets-list').innerHTML='';
+    document.getElementById('assets-tbody').innerHTML='';
+    document.getElementById('asset-empty').style.display='block';
+    return;
+  }
+  document.getElementById('asset-empty').style.display='none';
+  cachedAssets = assets;
+  document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a)).join('');
+  document.getElementById('assets-tbody').innerHTML=assets.map(a=>`
+    <tr style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
+      <td class="font-mono">${esc(a.id)}</td>
+      <td><div style="font-weight:600">${esc(a.name)}</div>${a.dept?`<div style="font-size:11px;color:var(--muted)">${esc(a.dept)}</div>`:''}</td>
+      <td>${typeBadge(a.type)}</td>
+      <td class="font-mono">${esc(a.serial)||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${a.assignedTo||'<span style="color:var(--muted)">Unassigned</span>'}</td>
+      <td class="font-mono">${a.purchaseDate||'—'}</td>
+      <td class="font-mono" style="${eolStatus(a.endOfLife)==='critical'?'color:var(--red)':eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'—'} ${eolFlag(a.endOfLife)||''}</td>
+      <td class="font-mono">${a.cost?'$'+Number(a.cost).toLocaleString():'—'}</td>
+      <td><div class="tbl-actions">
+        <button class="tbl-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">QR</button>
+        <button class="tbl-btn" onclick="editAsset('${esc(a.id)}')">Edit</button>
+        <button class="tbl-btn danger" onclick="deleteAsset('${esc(a.id)}')">Del</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+
+function eolMenuHtml(id, eolOverride, isEolActive) {
+  if (!eolOverride && !isEolActive) return '';
+  const cls  = eolOverride ? 'eol-clear' : 'eol-ack';
+  const icon = eolOverride
+    ? '<path d="M18 6 6 18M6 6l12 12"/>'
+    : '<polyline points="20 6 9 17 4 12"/>';
+  const label = eolOverride ? 'Remove EOL Override' : 'Acknowledge EOL';
+  const safeId = id.replace(/'/g, "\'");
+  return `<div class="card-menu-item ${cls}" onclick="toggleEolOverride('${safeId}');closeCardMenu('${safeId}')">` +
+    `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icon}</svg>${label}</div>`;
+}
+
+function assetCard(a) {
+  const flag    = eolFlag(a.endOfLife, a.eolOverride);
+  const retired = a.status === 'retired';
+  const isEolActive = !a.eolOverride && eolStatus(a.endOfLife);
+  const cardStyle = retired ? 'opacity:0.55;' : isEolActive === 'critical' ? 'border-color:rgba(255,59,92,0.35)' : isEolActive === 'warning' ? 'border-color:rgba(255,140,0,0.35)' : '';
+  return `<div class="asset-card" id="card-${esc(a.id)}" onmousemove="cardMove(event,this)" onmouseleave="cardLeave(this)" style="${cardStyle}">
+    <div class="card-spotlight"></div>
+    <div class="asset-card-checkbox" onclick="toggleCardSelect('${esc(a.id)}',event)">
+      <svg width="11" height="11" fill="none" stroke="#000" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="asset-card-header" onclick="batchMode?toggleCardSelect('${esc(a.id)}',event):null" style="cursor:inherit">
+      <div style="min-width:0;flex:1">
+        <div class="asset-card-name">${esc(a.name)}</div>
+        <div class="asset-card-id">${esc(a.id)}${a.serial?' · '+esc(a.serial):''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+        ${typeBadge(a.type)}
+        ${retired?'<span class="badge badge-retired">Retired</span>':(flag||'')}
+      </div>
+    </div>
+    <div class="asset-card-body">
+      <div class="asset-card-field"><label>Assigned To</label><span>${a.assignedTo?esc(a.assignedTo):'<span style="color:var(--muted)">Unassigned</span>'}</span></div>
+      <div class="asset-card-field"><label>Department</label><span>${a.dept?esc(a.dept):'<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="asset-card-field"><label>Purchase Date</label><span>${a.purchaseDate||'<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="asset-card-field"><label>End of Life</label><span style="${!a.eolOverride&&eolStatus(a.endOfLife)==='critical'?'color:var(--red)':!a.eolOverride&&eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
+      ${renderCustomFieldChips(a.id, a.type)}
+    </div>
+    <div class="asset-card-actions">
+      <button class="card-action-btn qr-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="0.5"/><rect x="16" y="3" width="5" height="5" rx="0.5"/><rect x="3" y="16" width="5" height="5" rx="0.5"/><path d="M16 16h5M16 21h5M21 16v5M16 11h5v2"/></svg>
+        QR
+      </button>
+      <button class="card-action-btn edit-btn" onclick="editAsset('${esc(a.id)}')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        Edit
+      </button>
+      <button class="card-action-btn card-more-btn" onclick="toggleCardMenu('${esc(a.id)}',event)" style="flex:0 0 44px;border-left:1px solid var(--border)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <div class="card-more-menu" id="card-menu-${esc(a.id)}">
+        ${eolMenuHtml(a.id, a.eolOverride, isEolActive)}
+        <div class="card-menu-item" onclick="showAssetLog('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          View History
+        </div>
+        <div class="card-menu-item warn" onclick="archiveAsset('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          Archive Asset
+        </div>
+      </div>
+    </div>
+    <div id="linked-section-${esc(a.id)}" class="linked-section" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+      <div class="linked-header" onclick="toggleLinkedExpand('${esc(a.id)}')">
+        <span class="linked-header-label">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Linked Assets
+          ${(linksCache[a.id]||[]).length ? `<span class="linked-count">${(linksCache[a.id]||[]).length}</span>` : ''}
+        </span>
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" id="linked-chevron-${esc(a.id)}" style="color:var(--muted);transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div id="linked-body-${esc(a.id)}" style="display:none">
+        <div class="linked-list" id="linked-list-${esc(a.id)}">
+          ${(linksCache[a.id]||[]).map(l => linkedChipHtml(a.id, l)).join('')}
+        </div>
+        <div style="position:relative">
+          <button class="linked-add-btn" onclick="openLinkPicker('${esc(a.id)}')">+ Link another asset</button>
+          <div id="link-picker-${esc(a.id)}" class="link-picker" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Batch Selection ───────────────────────────────────────────
+let batchMode    = false;
+let selectedIds  = new Set();
+let cachedAssets = []; // keep reference to loaded assets for batch ops
+
+function toggleBatchMode() {
+  batchMode = !batchMode;
+  selectedIds.clear();
+  const list = document.getElementById('assets-list');
+  const btn  = document.getElementById('batch-toggle-btn');
+  if (batchMode) {
+    list.classList.add('batch-mode');
+    btn.classList.add('active');
+    btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Select All`;
+    btn.onclick = selectAll;
+  } else {
+    cancelBatchMode();
+  }
+  updateBatchBar();
+}
+
+function selectAll() {
+  cachedAssets.forEach(a => selectedIds.add(a.id));
+  document.querySelectorAll('.asset-card').forEach(card => card.classList.add('selected'));
+  updateBatchBar();
+}
+
+function cancelBatchMode() {
+  batchMode = false;
+  selectedIds.clear();
+  document.getElementById('assets-list').classList.remove('batch-mode');
+  document.querySelectorAll('.asset-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('batch-bar').classList.remove('visible');
+  const btn = document.getElementById('batch-toggle-btn');
+  btn.classList.remove('active');
+  btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Select`;
+  btn.onclick = toggleBatchMode;
+}
+
+function toggleCardSelect(id, e) {
+  if (!batchMode) return;
+  e && e.stopPropagation();
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+    card.classList.remove('selected');
+  } else {
+    selectedIds.add(id);
+    card.classList.add('selected');
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar   = document.getElementById('batch-bar');
+  const count = document.getElementById('batch-count');
+  const n     = selectedIds.size;
+  count.textContent = n === 1 ? '1 selected' : `${n} selected`;
+  bar.classList.toggle('visible', batchMode && n > 0);
+}
+
+async function batchDelete() {
+  const ids = [...selectedIds];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} asset${ids.length>1?'s':''}? This cannot be undone.`)) return;
+  let done = 0;
+  for (const id of ids) {
+    await apiFetch(`${API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    done++;
+  }
+  toast(`Deleted ${done} asset${done>1?'s':''}`, 'success');
+  cancelBatchMode();
+  loadAssets();
+}
+
+async function batchEstimate() {
+  const ids    = [...selectedIds];
+  if (!ids.length) return;
+  const assets = cachedAssets.filter(a => ids.includes(a.id));
+
+  const prog      = document.getElementById('batch-progress');
+  const progBar   = document.getElementById('batch-progress-bar');
+  const progLabel = document.getElementById('batch-progress-label');
+  const progCount = document.getElementById('batch-progress-count');
+  const progDetail= document.getElementById('batch-progress-detail');
+
+  prog.classList.add('visible');
+  document.getElementById('batch-bar').classList.remove('visible');
+
+  let done = 0, updated = 0, failed = 0;
+
+  for (const a of assets) {
+    progLabel.textContent  = 'Estimating prices…';
+    progCount.textContent  = `${done} / ${assets.length}`;
+    progDetail.textContent = `${a.name} (${a.id})`;
+    progBar.style.width    = `${Math.round((done / assets.length) * 100)}%`;
+
+    try {
+      const res = await fetch('api/ai_price.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: a.name, type: a.type, serial: a.serial, purchaseDate: a.purchaseDate, notes: a.notes })
+      });
+      const est = await res.json();
+      if (res.ok && est.midpoint) {
+        // Save midpoint as cost
+        await apiFetch(API, {
+          method: 'PUT',
+          body: JSON.stringify({
+            id: a.id, name: a.name, type: a.type, serial: a.serial,
+            assigned_to: a.assignedTo, department: a.dept, status: a.status,
+            purchase_date: a.purchaseDate, end_of_life: a.endOfLife,
+            cost: est.midpoint, notes: a.notes
+          })
+        });
+        updated++;
+      } else { failed++; }
+    } catch { failed++; }
+    done++;
+  }
+
+  progBar.style.width    = '100%';
+  progLabel.textContent  = 'Done!';
+  progCount.textContent  = `${done} / ${assets.length}`;
+  progDetail.textContent = `${updated} updated, ${failed} failed`;
+
+  setTimeout(() => {
+    prog.classList.remove('visible');
+    cancelBatchMode();
+    loadAssets();
+    toast(`Updated ${updated} asset price${updated!==1?'s':''} with AI estimates`, 'success');
+  }, 1500);
+}
+
+async function toggleEolOverride(id) {
+  const asset = cachedAssets.find(a => a.id === id);
+  if (!asset) return;
+  const newOverride = !asset.eolOverride;
+
+  try {
+    await apiFetch(API, {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: asset.id, name: asset.name, type: asset.type, serial: asset.serial,
+        assigned_to: asset.assignedTo, department: asset.dept, status: asset.status,
+        purchase_date: asset.purchaseDate, end_of_life: asset.endOfLife,
+        cost: asset.cost, notes: asset.notes, eol_override: newOverride ? 1 : 0
+      })
+    });
+    // Update local cache after confirmed save
+    asset.eolOverride = newOverride;
+    toast(newOverride ? 'EOL warning acknowledged' : 'EOL override removed', 'success');
+    await loadAssets();
+    loadDashboard();
+  } catch(e) {
+    toast('Failed to update EOL override', 'error');
+  }
+}
+
+
+// ── Archive ───────────────────────────────────────────────────────────────────
+let archiveTimer = null;
+
+async function loadArchive() {
+  const q = document.getElementById('archive-search')?.value || '';
+  const list = document.getElementById('archive-list');
+  const empty = document.getElementById('archive-empty');
+  if (!list) return;
+  try {
+    const params = new URLSearchParams({ archived: 1 });
+    if (q) params.set('q', q);
+    const assets = await apiFetch(API + '?' + params);
+    if (!assets.length) {
+      list.innerHTML = ''; empty.style.display = '';
+    } else {
+      empty.style.display = 'none';
+      list.innerHTML = assets.map(archiveCard).join('');
+    }
+  } catch(e) {}
+}
+
+function archiveCard(a) {
+  const since = a.archivedAt ? timeAgo(a.archivedAt) : 'Unknown';
+  return `<div class="asset-card" id="arc-card-${esc(a.id)}" style="opacity:0.85">
+    <div class="card-spotlight"></div>
+    <div class="card-header">
+      <div>
+        <div class="asset-id">${esc(a.id)}</div>
+        <div class="asset-name">${esc(a.name)}</div>
+      </div>
+      <span class="badge badge-type">${esc(a.type)}</span>
+    </div>
+    <div class="card-meta">
+      ${a.assignedTo ? `<span>👤 ${esc(a.assignedTo)}</span>` : '<span style="color:var(--muted)">Unassigned</span>'}
+      ${a.dept ? `<span>🏢 ${esc(a.dept)}</span>` : ''}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">Archived ${since}</div>
+    <div class="archive-card-actions">
+      <button class="btn btn-primary" style="flex:1;font-size:12px;padding:8px 12px;min-height:auto" onclick="restoreAsset('${esc(a.id)}')">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.07"/></svg>
+        Restore
+      </button>
+      <button class="btn" style="font-size:12px;padding:8px 12px;min-height:auto;background:rgba(255,59,92,0.08);border-color:rgba(255,59,92,0.25);color:var(--red)" onclick="hardDeleteAsset('${esc(a.id)}','${esc(a.name)}')">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Delete
+      </button>
+    </div>
+  </div>`;
+}
+
+async function archiveAsset(id) {
+  if (!confirm('Archive this asset? It will be hidden from the main list but can be restored.')) return;
+  try {
+    await apiFetch(API + '?archive=1', { method: 'PUT', body: JSON.stringify({ id }) });
+    toast('Asset archived', 'success');
+    // Remove from cachedAssets + re-render
+    const idx = cachedAssets.findIndex(a => a.id === id);
+    if (idx !== -1) cachedAssets.splice(idx, 1);
+    document.getElementById('card-' + id)?.remove();
+    loadDashboard();
+  } catch(e) {}
+}
+
+async function restoreAsset(id) {
+  try {
+    await apiFetch(API + '?restore=1', { method: 'PUT', body: JSON.stringify({ id }) });
+    toast('Asset restored to active list', 'success');
+    document.getElementById('arc-card-' + id)?.remove();
+    loadDashboard();
+    // Check if archive list is now empty
+    const remaining = document.querySelectorAll('[id^="arc-card-"]');
+    if (!remaining.length) {
+      document.getElementById('archive-empty').style.display = '';
+    }
+  } catch(e) {}
+}
+
+async function hardDeleteAsset(id, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch(API + '?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    toast('Asset permanently deleted', 'success');
+    document.getElementById('arc-card-' + id)?.remove();
+    loadDashboard();
+    const remaining = document.querySelectorAll('[id^="arc-card-"]');
+    if (!remaining.length) {
+      document.getElementById('archive-empty').style.display = '';
+    }
+  } catch(e) {}
+}
+
+// ── Activity Log ──────────────────────────────────────────────────────────────
+let activityOffset = 0;
+const ACTIVITY_LIMIT = 30;
+
+const LOG_ICONS = {
+  created:  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>`,
+  updated:  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  archived: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+  restored: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.07"/></svg>`,
+  deleted:  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>`,
+};
+
+const LOG_LABELS = {
+  created: 'Created',  updated: 'Updated',
+  archived: 'Archived', restored: 'Restored', deleted: 'Deleted',
+};
+
+const FIELD_LABELS = {
+  name:'Name', type:'Type', serial:'Serial', assigned_to:'Assigned To',
+  department:'Department', status:'Status', purchase_date:'Purchase Date',
+  end_of_life:'End of Life', cost:'Cost', notes:'Notes', eol_override:'EOL Override',
+};
+
+function logEntryHtml(log) {
+  const action = log.action || 'updated';
+  const icon = LOG_ICONS[action] || LOG_ICONS.updated;
+  const label = LOG_LABELS[action] || action;
+  const when    = timeAgo(log.createdAt);
+  const absDate = log.createdAt
+    ? new Date(log.createdAt.replace(' ','T')).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : '';
+  const who = log.performedBy || 'Unknown';
+  const fields = (log.changedFields || []).map(f =>
+    `<span class="log-field-tag">${FIELD_LABELS[f] || f}</span>`
+  ).join('');
+  const nameLink = action !== 'deleted'
+    ? `<a href="#" onclick="event.preventDefault();showPage('assets');setTimeout(()=>openEditModal('${esc(log.assetId)}'),300)">${esc(log.assetName)}</a>`
+    : `<span>${esc(log.assetName)}</span>`;
+  return `<div class="log-entry">
+    <div class="log-icon ${action}">${icon}</div>
+    <div class="log-body">
+      <div class="log-title">${label} — ${nameLink} <span style="color:var(--muted);font-weight:400">(${esc(log.assetId)})</span></div>
+      <div class="log-meta" title="${absDate}">${esc(who)} · ${when}</div>
+      ${fields ? `<div class="log-fields">${fields}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadActivity(reset = true) {
+  if (reset) activityOffset = 0;
+  const list = document.getElementById('activity-list');
+  const empty = document.getElementById('activity-empty');
+  const loadMoreBtn = document.getElementById('activity-load-more');
+  if (!list) return;
+  try {
+    const params = new URLSearchParams({ logs: 1, limit: ACTIVITY_LIMIT, offset: activityOffset });
+    const data = await apiFetch(API + '?' + params);
+    const logs = data.logs || [];
+    if (reset) list.innerHTML = '';
+    if (!logs.length && reset) {
+      empty.style.display = ''; loadMoreBtn.style.display = 'none';
+    } else {
+      empty.style.display = 'none';
+      list.insertAdjacentHTML('beforeend', logs.map(logEntryHtml).join(''));
+      activityOffset += logs.length;
+      loadMoreBtn.style.display = (logs.length === ACTIVITY_LIMIT) ? '' : 'none';
+    }
+  } catch(e) {}
+}
+
+async function loadMoreActivity() { await loadActivity(false); }
+
+// Per-asset activity drawer
+async function showAssetLog(assetId) {
+  try {
+    const data = await apiFetch(API + '?logs=1&id=' + encodeURIComponent(assetId) + '&limit=20');
+    const logs = data.logs || [];
+    if (!logs.length) { toast('No history for this asset yet', 'success'); return; }
+    // Re-use the detail overlay
+    let drawer = document.getElementById('asset-log-drawer');
+    if (!drawer) {
+      drawer = document.createElement('div');
+      drawer.id = 'asset-log-drawer';
+      drawer.style.cssText = 'position:fixed;inset:0;z-index:300;display:flex;align-items:flex-end;justify-content:center';
+      drawer.innerHTML = `
+        <div onclick="this.parentElement.remove()" style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px)"></div>
+        <div style="position:relative;width:100%;max-width:600px;max-height:75vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:18px 18px 0 0;padding:20px">
+          <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.15);margin:0 auto 16px"></div>
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:12px">Asset History</h3>
+          <div id="asset-log-entries" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>`;
+      document.body.appendChild(drawer);
+    }
+    document.getElementById('asset-log-entries').innerHTML = logs.map(logEntryHtml).join('');
+  } catch(e) {}
+}
+
+// Helper: human-readable relative time
+function timeAgo(dateStr) {
+  if (!dateStr) return 'Unknown';
+  const date = new Date(dateStr.replace(' ','T'));
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60)    return 'Just now';
+  if (diff < 3600)  return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if (diff < 604800)return Math.floor(diff/86400) + 'd ago';
+  // For older entries, show actual date
+  return date.toLocaleDateString(undefined, {month:'short', day:'numeric', year: diff > 31536000 ? 'numeric' : undefined});
+}
+
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════════════════════════════════════
+async function checkAlerts() {
+  try {
+    const data = await apiFetch(SETTINGS_API + '?alerts=1');
+    const alerts = data.alerts || [];
+    const banner = document.getElementById('alert-banner');
+    const txt    = document.getElementById('alert-banner-text');
+    const badge  = document.getElementById('alert-badge');
+    const badgem = document.getElementById('alert-badge-mob');
+
+    if (alerts.length && data.enabled) {
+      const msg = alerts.map(a =>
+        `${a.type}: ${a.have} unassigned (need ≥ ${a.threshold})`
+      ).join(' · ');
+      if (txt)    txt.textContent = msg;
+      if (banner) banner.style.display = '';
+      if (badge)  badge.style.display = '';
+      if (badgem) badgem.style.display = '';
+    } else {
+      if (banner) banner.style.display = 'none';
+      if (badge)  badge.style.display = 'none';
+      if (badgem) badgem.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SETTINGS PAGE
+// ══════════════════════════════════════════════════════════════════════════════
+const THRESHOLD_TYPES = ['Laptop','Desktop','Monitor','Docking Station','Printer','Camera','Other'];
+const THRESHOLD_KEYS  = {
+  'Laptop':'threshold_laptop','Desktop':'threshold_desktop','Monitor':'threshold_monitor',
+  'Docking Station':'threshold_docking_station','Printer':'threshold_printer',
+  'Camera':'threshold_camera','Other':'threshold_other'
+};
+
+// ── Settings section collapse ──────────────────────────────────────────────
+function initSettingsCollapse() {
+  document.querySelectorAll('.settings-section').forEach(section => {
+    const titleEl = section.querySelector('.settings-section-title');
+    const bodyEl  = section.querySelector('.settings-section-body');
+    if (!titleEl || !bodyEl) return;
+    // Measure and store natural height
+    bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+    // Make title a toggle
+    titleEl.classList.add('settings-section-toggle');
+    const icon = document.createElement('span');
+    icon.className = 'settings-toggle-icon';
+    icon.innerHTML = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>';
+    titleEl.appendChild(icon);
+    titleEl.addEventListener('click', () => {
+      const isCollapsed = section.classList.toggle('collapsed');
+      if (!isCollapsed) bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
+    });
+  });
+}
+
+// Auto-wrap settings section content in .settings-section-body
+function wrapSettingsBodies() {
+  document.querySelectorAll('.settings-section').forEach(section => {
+    const title = section.querySelector('.settings-section-title');
+    const sub   = section.querySelector('.settings-section-sub');
+    if (!title) return;
+    // Find all children after the title/sub
+    const children = Array.from(section.children);
+    const startIdx = children.indexOf(sub || title) + 1;
+    if (startIdx <= 0 || startIdx >= children.length) return;
+    const body = document.createElement('div');
+    body.className = 'settings-section-body';
+    children.slice(startIdx).forEach(child => body.appendChild(child));
+    section.appendChild(body);
+  });
+}
+
+async function loadSettings() {
+  try {
+    const s = await apiFetch(SETTINGS_API);
+    // Alerts toggle
+    const tog = document.getElementById('setting-alerts-enabled');
+    if (tog) tog.checked = (s['alerts_enabled'] !== '0');
+    // Depreciation years
+    const dy = document.getElementById('setting-depr-years');
+    if (dy) dy.value = s['depreciation_years'] || '5';
+    // Threshold fields
+    const wrap = document.getElementById('threshold-fields');
+    if (wrap) {
+      wrap.innerHTML = THRESHOLD_TYPES.map(type => {
+        const key = THRESHOLD_KEYS[type];
+        const val = s[key] ?? '1';
+        return `<div class="threshold-field">
+          <label>${type}</label>
+          <input type="number" min="0" max="50" value="${val}" id="thr-${key}" data-key="${key}">
+        </div>`;
+      }).join('');
+    }
+  renderCfDefsList();
+  } catch(e) {}
+}
+
+async function saveAlertToggle(enabled) {
+  try {
+    await apiFetch(SETTINGS_API, { method:'POST', body: JSON.stringify({ alerts_enabled: enabled ? '1' : '0' }) });
+    toast(enabled ? 'Alerts enabled' : 'Alerts disabled', 'success');
+    checkAlerts();
+  } catch(e) {}
+}
+
+async function saveThresholds() {
+  const payload = {};
+  document.querySelectorAll('#threshold-fields input').forEach(inp => {
+    payload[inp.dataset.key] = inp.value;
+  });
+  try {
+    await apiFetch(SETTINGS_API, { method:'POST', body: JSON.stringify(payload) });
+    toast('Thresholds saved', 'success');
+    checkAlerts();
+  } catch(e) {}
+}
+
+async function saveDeprYears() {
+  const val = document.getElementById('setting-depr-years')?.value || '5';
+  try {
+    await apiFetch(SETTINGS_API, { method:'POST', body: JSON.stringify({ depreciation_years: val }) });
+    toast('Depreciation period saved', 'success');
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REPORTS PAGE
+// ══════════════════════════════════════════════════════════════════════════════
+async function loadReports() {
+  try {
+    const [assets, settings] = await Promise.all([
+      apiFetch(API + '?show_retired=1'),
+      apiFetch(SETTINGS_API),
+    ]);
+    const deprYears = parseFloat(settings['depreciation_years'] || '5');
+    const now = Date.now();
+
+    // Annotate each asset with depreciation
+    const annotated = assets.map(a => {
+      const cost = parseFloat(a.cost) || 0;
+      const ageYears = a.purchaseDate
+        ? (now - new Date(a.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+        : null;
+      const currentValue = ageYears !== null
+        ? Math.max(0, cost * (1 - ageYears / deprYears))
+        : null;
+      const deprPct = cost > 0 && currentValue !== null
+        ? Math.max(0, Math.min(100, 100 - (currentValue / cost * 100)))
+        : null;
+      const eolDate  = a.endOfLife ? new Date(a.endOfLife) : null;
+      const msToEol  = eolDate ? eolDate.getTime() - now : null;
+      const eolStatus = a.eolOverride ? 'acknowledged'
+        : !eolDate ? 'unknown'
+        : msToEol < 0 ? 'expired'
+        : msToEol < 1000*60*60*24*180 ? 'critical'
+        : msToEol < 1000*60*60*24*365 ? 'warning'
+        : 'ok';
+      return { ...a, cost, ageYears, currentValue, deprPct, eolStatus, eolDate };
+    });
+
+    renderSummaryCards(annotated);
+    renderByDept(annotated);
+    renderByType(annotated);
+    renderDepreciation(annotated);
+    renderEol(annotated);
+  } catch(e) { console.error(e); }
+}
+
+function fmt$(n) {
+  if (n == null) return '—';
+  return '$' + Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+}
+function fmtPct(n) { return n == null ? '—' : Math.round(n) + '%'; }
+
+function renderSummaryCards(assets) {
+  const active = assets.filter(a => !a.archived && a.status !== 'retired');
+  const totalCost = active.reduce((s,a)=>s+a.cost,0);
+  const totalCurrent = active.reduce((s,a)=>s+(a.currentValue??a.cost),0);
+  const eolSoon = active.filter(a=>a.eolStatus==='warning'||a.eolStatus==='critical').length;
+  const fullyDepr = active.filter(a=>a.currentValue===0&&a.cost>0).length;
+  const cards = [
+    {label:'Total Book Value',  val: fmt$(totalCost),    sub:'Original cost'},
+    {label:'Current Value',     val: fmt$(totalCurrent), sub:'After depreciation'},
+    {label:'Total Depreciation',val: fmt$(totalCost-totalCurrent), sub:'Accumulated'},
+    {label:'EOL Soon',          val: eolSoon,            sub:'Within 12 months'},
+    {label:'Fully Depreciated', val: fullyDepr,          sub:'Book value $0'},
+  ];
+  document.getElementById('report-summary-cards').innerHTML = cards.map(c=>`
+    <div class="report-summary-card">
+      <div class="rsv">${c.val}</div>
+      <div class="rsl">${c.label}</div>
+      <div class="rsl" style="color:var(--muted2,var(--muted));opacity:0.7">${c.sub}</div>
+    </div>`).join('');
+}
+
+function renderByDept(assets) {
+  const active = assets.filter(a=>!a.archived&&a.status!=='retired');
+  const map = {};
+  active.forEach(a => {
+    const d = a.dept || '(None)';
+    if (!map[d]) map[d] = {count:0,cost:0,current:0};
+    map[d].count++; map[d].cost+=a.cost; map[d].current+=(a.currentValue??a.cost);
+  });
+  const rows = Object.entries(map).sort((x,y)=>y[1].cost-x[1].cost);
+  if (!rows.length) { document.getElementById('report-by-dept').innerHTML='<p style="padding:14px;color:var(--muted);font-size:13px">No data</p>'; return; }
+  document.getElementById('report-by-dept').innerHTML = `<table class="report-table">
+    <thead><tr><th>Department</th><th class="num">Assets</th><th class="num">Book Value</th><th class="num">Current Value</th><th class="num">Depreciated</th></tr></thead>
+    <tbody>${rows.map(([dept,d])=>`<tr>
+      <td>${esc(dept)}</td>
+      <td class="num">${d.count}</td>
+      <td class="num">${fmt$(d.cost)}</td>
+      <td class="num">${fmt$(d.current)}</td>
+      <td class="num">${fmt$(d.cost-d.current)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderByType(assets) {
+  const active = assets.filter(a=>!a.archived&&a.status!=='retired');
+  const map = {};
+  active.forEach(a => {
+    const t = a.type || 'Other';
+    if (!map[t]) map[t] = {count:0,assigned:0,cost:0};
+    map[t].count++; if(a.assignedTo) map[t].assigned++;
+    map[t].cost+=a.cost;
+  });
+  const rows = Object.entries(map).sort((x,y)=>y[1].count-x[1].count);
+  document.getElementById('report-by-type').innerHTML = `<table class="report-table">
+    <thead><tr><th>Type</th><th class="num">Total</th><th class="num">Assigned</th><th class="num">Unassigned</th><th class="num">Book Value</th></tr></thead>
+    <tbody>${rows.map(([type,d])=>`<tr>
+      <td>${esc(type)}</td>
+      <td class="num">${d.count}</td>
+      <td class="num">${d.assigned}</td>
+      <td class="num">${d.count-d.assigned}</td>
+      <td class="num">${fmt$(d.cost)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderDepreciation(assets) {
+  const withCost = assets.filter(a=>!a.archived&&a.status!=='retired'&&a.cost>0&&a.purchaseDate)
+    .sort((a,b)=>(a.currentValue??0)-(b.currentValue??0));
+  if (!withCost.length) { document.getElementById('report-depreciation').innerHTML='<p style="padding:14px;color:var(--muted);font-size:13px">No assets with cost + purchase date set</p>'; return; }
+  document.getElementById('report-depreciation').innerHTML = `<table class="report-table">
+    <thead><tr><th>Asset</th><th>Type</th><th class="num">Original</th><th class="num">Current Value</th><th class="num">Depreciated</th><th>Remaining Life</th></tr></thead>
+    <tbody>${withCost.slice(0,50).map(a=>{
+      const pct = a.deprPct ?? 0;
+      const remaining = a.ageYears != null ? Math.max(0, 5 - a.ageYears) : null;
+      const remStr = remaining != null ? (remaining < 0.1 ? 'Fully depreciated' : remaining.toFixed(1) + ' yrs') : '—';
+
+      return `<tr>
+        <td><div style="font-weight:600">${esc(a.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(a.id)}</div></td>
+        <td>${esc(a.type)}</td>
+        <td class="num">${fmt$(a.cost)}</td>
+        <td class="num">${fmt$(a.currentValue)}</td>
+        <td class="num">
+          <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+            ${fmtPct(pct)}
+            <div class="depr-bar-wrap"><div class="depr-bar${pct<=25?' crit':pct<=50?' warn':''}" style="width:${pct}%"></div></div>
+          </div>
+        </td>
+        <td style="font-size:12px;color:${remaining!=null&&remaining<0.5?'var(--red)':remaining!=null&&remaining<1?'var(--orange)':'var(--text)'}">${remStr}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>${withCost.length>50?`<p style="padding:10px 14px;font-size:12px;color:var(--muted)">Showing top 50 of ${withCost.length}</p>`:''}`;
+}
+
+function renderEol(assets) {
+  const active = assets.filter(a=>!a.archived&&a.status!=='retired');
+  const eolBuckets = {expired:[],critical:[],warning:[],ok:[],unknown:[]};
+  active.forEach(a => eolBuckets[a.eolStatus]?.push(a));
+  const order = ['expired','critical','warning','ok','unknown'];
+  const labels = {expired:'Expired',critical:'Critical (<6 mo)',warning:'Warning (<12 mo)',ok:'OK',unknown:'No EOL Set'};
+  const colors = {expired:'var(--red)',critical:'var(--red)',warning:'var(--orange)',ok:'var(--green)',unknown:'var(--muted)'};
+  let html = `<table class="report-table"><thead><tr><th>Asset</th><th>Type</th><th>Assigned To</th><th>EOL Date</th><th>Status</th></tr></thead><tbody>`;
+  let any = false;
+  order.forEach(bucket => {
+    eolBuckets[bucket].sort((a,b)=>{
+      if(!a.eolDate&&!b.eolDate) return 0;
+      if(!a.eolDate) return 1; if(!b.eolDate) return -1;
+      return a.eolDate-b.eolDate;
+    }).forEach(a => {
+      any = true;
+      const dateStr = a.endOfLife ? new Date(a.endOfLife).toLocaleDateString() : '—';
+      html += `<tr>
+        <td><div style="font-weight:600">${esc(a.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(a.id)}</div></td>
+        <td>${esc(a.type)}</td>
+        <td>${esc(a.assignedTo||'—')}</td>
+        <td>${dateStr}</td>
+        <td><span style="font-size:12px;font-weight:700;color:${colors[bucket]}">${labels[bucket]}</span></td>
+      </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  document.getElementById('report-eol').innerHTML = any ? html : '<p style="padding:14px;color:var(--muted);font-size:13px">No EOL data</p>';
+}
+
+// CSV Export
+async function exportCSV() {
+  try {
+    const [assets, settings] = await Promise.all([
+      apiFetch(API + '?show_retired=1'),
+      apiFetch(SETTINGS_API),
+    ]);
+    const deprYears = parseFloat(settings['depreciation_years'] || '5');
+    const now = Date.now();
+    const annotated = assets.map(a => {
+      const cost = parseFloat(a.cost) || 0;
+      const ageYears = a.purchaseDate ? (now - new Date(a.purchaseDate).getTime()) / (1000*60*60*24*365.25) : null;
+      const currentValue = ageYears !== null ? Math.max(0, cost * (1 - ageYears / deprYears)) : null;
+      const eolDate = a.endOfLife ? new Date(a.endOfLife) : null;
+      const msToEol = eolDate ? eolDate.getTime() - now : null;
+      const eolStatus = a.eolOverride ? 'Acknowledged'
+        : !eolDate ? 'Unknown'
+        : msToEol < 0 ? 'Expired'
+        : msToEol < 1000*60*60*24*180 ? 'Critical'
+        : msToEol < 1000*60*60*24*365 ? 'Warning' : 'OK';
+      return { ...a, cost, currentValue, eolStatus };
+    });
+
+    const headers = ['ID','Name','Type','Serial','Assigned To','Department','Status',
+      'Purchase Date','End of Life','EOL Status','Cost','Current Value','Depreciation %',
+      'Notes','Created At'];
+    const rows = annotated.map(a => [
+      a.id, a.name, a.type, a.serial, a.assignedTo, a.dept, a.status,
+      a.purchaseDate||'', a.endOfLife||'', a.eolStatus,
+      a.cost||'', a.currentValue != null ? Math.round(a.currentValue) : '',
+      a.currentValue != null && a.cost > 0 ? Math.round((1-(a.currentValue/a.cost))*100)+'%' : '',
+      a.notes, a.createdAt,
+    ]);
+
+    const csvContent = [headers, ...rows].map(row =>
+      row.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `assetiq-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast('CSV exported', 'success');
+  } catch(e) { toast('Export failed','error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LINKED ASSETS
+// ══════════════════════════════════════════════════════════════════════════════
+// Cache links per asset to avoid refetching
+const linksCache = {};
+
+async function loadAssetLinks(assetId) {
+  try {
+    const links = await apiFetch(LINKS_API + '?id=' + encodeURIComponent(assetId));
+    linksCache[assetId] = links;
+    return links;
+  } catch(e) { return []; }
+}
+
+function renderLinkedSection(assetId, links, expanded = false) {
+  const count = links.length;
+  return `<div class="linked-section" id="linked-section-${esc(assetId)}">
+    <div class="linked-header" onclick="toggleLinkedExpand('${esc(assetId)}')">
+      <span class="linked-header-label">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Linked Assets
+        ${count ? `<span class="linked-count">${count}</span>` : ''}
+      </span>
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" id="linked-chevron-${esc(assetId)}" style="color:var(--muted);transition:transform 0.2s${expanded?';transform:rotate(180deg)':''}"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div id="linked-body-${esc(assetId)}" style="display:${expanded?'block':'none'}">
+      <div class="linked-list" id="linked-list-${esc(assetId)}">
+        ${links.map(l => linkedChipHtml(assetId, l)).join('')}
+      </div>
+      <div style="position:relative">
+        <button class="linked-add-btn" onclick="openLinkPicker('${esc(assetId)}')">
+          + Link another asset
+        </button>
+        <div id="link-picker-${esc(assetId)}" class="link-picker" style="display:none"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function linkedChipHtml(assetId, link) {
+  const status = link.linked_archived ? '⚠ Archived' : (link.linked_assigned_to ? `👤 ${esc(link.linked_assigned_to)}` : 'Unassigned');
+  return `<div class="linked-chip" id="link-chip-${link.id}">
+    <div>
+      <div class="linked-chip-name">${esc(link.linked_name)}</div>
+      <div class="linked-chip-type">${esc(link.linked_id)} · ${esc(link.linked_type)} · ${status}</div>
+    </div>
+    <span class="linked-chip-unlink" onclick="unlinkAsset(${link.id},'${esc(assetId)}')" title="Remove link">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </span>
+  </div>`;
+}
+
+function toggleLinkedExpand(assetId) {
+  const body    = document.getElementById(`linked-body-${assetId}`);
+  const chevron = document.getElementById(`linked-chevron-${assetId}`);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+  // Load links on first expand
+  if (open && !linksCache[assetId]) {
+    loadAssetLinks(assetId).then(links => {
+      const list = document.getElementById(`linked-list-${assetId}`);
+      if (list) list.innerHTML = links.map(l => linkedChipHtml(assetId, l)).join('');
+    });
+  }
+}
+
+let linkPickerTimer = null;
+function openLinkPicker(assetId) {
+  const picker = document.getElementById(`link-picker-${assetId}`);
+  if (!picker) return;
+  picker.style.display = '';
+  picker.innerHTML = `<div style="padding:8px 12px"><input type="text" placeholder="Search assets…" id="link-search-${esc(assetId)}" oninput="debounceLinkSearch('${esc(assetId)}')" style="width:100%"></div>`;
+  document.getElementById(`link-search-${assetId}`)?.focus();
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function handler(e) {
+    if (!picker.contains(e.target)) { picker.style.display='none'; document.removeEventListener('click', handler); }
+  }), 50);
+}
+
+function debounceLinkSearch(assetId) {
+  clearTimeout(linkPickerTimer);
+  linkPickerTimer = setTimeout(() => runLinkSearch(assetId), 250);
+}
+
+async function runLinkSearch(assetId) {
+  const input   = document.getElementById(`link-search-${assetId}`);
+  const picker  = document.getElementById(`link-picker-${assetId}`);
+  if (!input || !picker) return;
+  const q = input.value.trim();
+  if (!q) return;
+  try {
+    const results = await apiFetch(API + '?q=' + encodeURIComponent(q) + '&show_retired=1');
+    const existing = (linksCache[assetId] || []).map(l => l.linked_id);
+    const filtered = results.filter(r => r.id !== assetId && !existing.includes(r.id)).slice(0, 8);
+    const items = filtered.length
+      ? filtered.map(r => `<div class="link-picker-item" onclick="createLink('${esc(assetId)}','${esc(r.id)}')">
+          <div style="font-weight:600">${esc(r.name)}</div>
+          <div class="pid">${esc(r.id)} · ${esc(r.type)} ${r.assignedTo ? '· 👤 '+esc(r.assignedTo) : ''}</div>
+        </div>`).join('')
+      : `<div style="padding:10px 12px;color:var(--muted);font-size:13px">No results</div>`;
+    picker.innerHTML = `<div style="padding:8px 12px"><input type="text" placeholder="Search assets…" id="link-search-${esc(assetId)}" oninput="debounceLinkSearch('${esc(assetId)}')" value="${esc(q)}" style="width:100%"></div>` + items;
+    document.getElementById(`link-search-${assetId}`)?.focus();
+  } catch(e) {}
+}
+
+async function createLink(assetId, targetId) {
+  try {
+    await apiFetch(LINKS_API, { method:'POST', body: JSON.stringify({ asset_id_a: assetId, asset_id_b: targetId }) });
+    // Refresh links for this asset
+    const links = await loadAssetLinks(assetId);
+    const list  = document.getElementById(`linked-list-${assetId}`);
+    if (list) list.innerHTML = links.map(l => linkedChipHtml(assetId, l)).join('');
+    // Update count badge
+    const section = document.getElementById(`linked-section-${assetId}`);
+    if (section) {
+      const countEl = section.querySelector('.linked-count');
+      if (countEl) countEl.textContent = links.length;
+      else if (links.length) {
+        const label = section.querySelector('.linked-header-label');
+        label?.insertAdjacentHTML('beforeend', `<span class="linked-count">${links.length}</span>`);
+      }
+    }
+    // Close picker
+    const picker = document.getElementById(`link-picker-${assetId}`);
+    if (picker) picker.style.display = 'none';
+    toast('Assets linked', 'success');
+  } catch(e) {
+    if (e.message?.includes('409') || e.message?.includes('exists')) toast('Already linked','error');
+  }
+}
+
+async function unlinkAsset(linkId, assetId) {
+  try {
+    await apiFetch(LINKS_API + '?id=' + linkId, { method:'DELETE' });
+    document.getElementById(`link-chip-${linkId}`)?.remove();
+    // Update cache
+    if (linksCache[assetId]) {
+      linksCache[assetId] = linksCache[assetId].filter(l => l.id !== linkId);
+      const countEl = document.querySelector(`#linked-section-${assetId} .linked-count`);
+      if (countEl) {
+        const newCount = linksCache[assetId].length;
+        if (newCount) countEl.textContent = newCount;
+        else countEl.remove();
+      }
+    }
+    toast('Link removed', 'success');
+  } catch(e) {}
+}
+
+// Inject linked section into a rendered asset card
+async function injectLinkedSection(assetId) {
+  const section = document.getElementById(`linked-section-${assetId}`);
+  if (section) return; // already there
+  const card = document.getElementById(`card-${assetId}`);
+  if (!card) return;
+  const links = await loadAssetLinks(assetId);
+  card.insertAdjacentHTML('beforeend', renderLinkedSection(assetId, links, false));
+}
+
+
+// ── Mobile Drawer ─────────────────────────────────────────────────────────────
+
+// ── Card overflow menu ────────────────────────────────────────────────────────
+function toggleCardMenu(id, e) {
+  e.stopPropagation();
+  const menu = document.getElementById('card-menu-' + id);
+  if (!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  // close all first
+  document.querySelectorAll('.card-more-menu.open').forEach(m => m.classList.remove('open'));
+  if (!wasOpen) menu.classList.add('open');
+}
+function closeCardMenu(id) {
+  const el = document.getElementById('card-menu-' + id);
+  if (el) el.classList.remove('open');
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.card-more-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+function openDrawer() {
+  document.getElementById('mobile-drawer')?.classList.add('open');
+  document.getElementById('drawer-overlay')?.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('mobile-drawer')?.classList.remove('open');
+  document.getElementById('drawer-overlay')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+(function(){
+  let sx=0;
+  document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(e.changedTouches[0].clientX-sx<-60&&document.getElementById('mobile-drawer')?.classList.contains('open'))closeDrawer();
+  },{passive:true});
+})();
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DATE RANGE FILTER
+// ══════════════════════════════════════════════════════════════════════════════
+let activeDatePreset   = 'all';
+let customRangeFrom    = '';
+let customRangeTo      = '';
+
+function buildStatsUrl() {
+  const p = new URLSearchParams({ stats: 1 });
+  const now  = new Date();
+  if (activeDatePreset === '30d') {
+    const d = new Date(now); d.setDate(d.getDate() - 30);
+    p.set('purchased_after', d.toISOString().slice(0,10));
+  } else if (activeDatePreset === '90d') {
+    const d = new Date(now); d.setDate(d.getDate() - 90);
+    p.set('purchased_after', d.toISOString().slice(0,10));
+  } else if (activeDatePreset === '1yr') {
+    const d = new Date(now); d.setFullYear(d.getFullYear() - 1);
+    p.set('purchased_after', d.toISOString().slice(0,10));
+  } else if (activeDatePreset === 'custom') {
+    if (customRangeFrom) p.set('purchased_after',  customRangeFrom);
+    if (customRangeTo)   p.set('purchased_before', customRangeTo);
+  }
+  return API + '?' + p.toString();
+}
+
+function setDatePreset(preset) {
+  activeDatePreset = preset;
+  // Update button styles
+  ['all','30d','90d','1yr','custom'].forEach(p => {
+    const btn = document.getElementById('preset-' + p);
+    if (btn) btn.classList.toggle('active', p === preset);
+  });
+  // Show/hide custom inputs
+  const custom = document.getElementById('date-range-custom');
+  if (custom) custom.classList.toggle('open', preset === 'custom');
+  // Reload dashboard unless waiting for custom date input
+  if (preset !== 'custom') loadDashboard();
+}
+
+function applyCustomRange() {
+  customRangeFrom = document.getElementById('range-from')?.value || '';
+  customRangeTo   = document.getElementById('range-to')?.value   || '';
+  if (customRangeFrom || customRangeTo) loadDashboard();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CUSTOM FIELDS
+// ══════════════════════════════════════════════════════════════════════════════
+let cfDefsCache   = null;  // all field defs: [{id,asset_type,label,field_key,...}]
+let cfValuesCache = {};    // {assetId: {field_key: value}}
+
+async function loadCfDefs(force = false) {
+  if (cfDefsCache && !force) return cfDefsCache;
+  try {
+    cfDefsCache = await apiFetch(FIELDS_API);
+  } catch(e) { cfDefsCache = []; }
+  return cfDefsCache;
+}
+
+async function loadCfValues(assetId) {
+  if (cfValuesCache[assetId]) return cfValuesCache[assetId];
+  try {
+    cfValuesCache[assetId] = await apiFetch(FIELDS_API + '?values=1&id=' + encodeURIComponent(assetId));
+  } catch(e) { cfValuesCache[assetId] = {}; }
+  return cfValuesCache[assetId];
+}
+
+// Render inline chips on the card — synchronous using cache
+function renderCustomFieldChips(assetId, assetType) {
+  const defs   = (cfDefsCache || []).filter(d => d.asset_type === assetType);
+  const values = cfValuesCache[assetId] || {};
+  const chips  = defs
+    .filter(d => values[d.field_key])
+    .map(d => {
+      const val = values[d.field_key];
+      const display = d.field_type === 'date' && val
+        ? new Date(val).toLocaleDateString() : val;
+      return `<span class="custom-field-chip">
+        <span class="custom-field-chip-label">${esc(d.label)}:</span>
+        <span class="custom-field-chip-value">${esc(display)}</span>
+      </span>`;
+    });
+  if (!chips.length) return '';
+  return `<div class="custom-fields-row">${chips.join('')}</div>`;
+}
+
+// Pre-fetch custom field defs + values for a batch of assets so cards render correctly
+async function prefetchCustomFields(assets) {
+  await loadCfDefs();
+  const relevant = assets.filter(a =>
+    (cfDefsCache || []).some(d => d.asset_type === a.type)
+  );
+  await Promise.all(relevant.map(a => loadCfValues(a.id)));
+}
+
+// Load custom fields into edit/add modal for current asset type
+async function loadCustomFieldsForModal(assetType, assetId = null) {
+  const section = document.getElementById('custom-fields-modal-section');
+  const wrap    = document.getElementById('custom-fields-modal-inputs');
+  if (!section || !wrap) return;
+  const defs = (await loadCfDefs()).filter(d => d.asset_type === assetType);
+  if (!defs.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const values = assetId ? await loadCfValues(assetId) : {};
+  wrap.innerHTML = defs.map(d => `
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px">${esc(d.label)}</label>
+      <input type="date" id="cf-input-${esc(d.field_key)}" data-key="${esc(d.field_key)}"
+             value="${esc(values[d.field_key] || '')}" style="width:100%">
+    </div>
+  `).join('');
+}
+
+// Collect custom field values from modal inputs
+function collectCustomFieldValues() {
+  const out = {};
+  document.querySelectorAll('#custom-fields-modal-inputs input[data-key]').forEach(inp => {
+    if (inp.value) out[inp.dataset.key] = inp.value;
+  });
+  return out;
+}
+
+// Save custom field values after asset save
+async function saveCustomFieldValues(assetId) {
+  const values = collectCustomFieldValues();
+  if (!Object.keys(values).length) return;
+  try {
+    await apiFetch(FIELDS_API + '?values=1', {
+      method: 'POST',
+      body: JSON.stringify({ asset_id: assetId, values })
+    });
+    // Update local cache
+    cfValuesCache[assetId] = { ...(cfValuesCache[assetId] || {}), ...values };
+  } catch(e) {}
+}
+
+// ── Settings: manage field defs ───────────────────────────────────────────────
+async function renderCfDefsList() {
+  const defs = await loadCfDefs(true);
+  const wrap = document.getElementById('cf-defs-list');
+  if (!wrap) return;
+  if (!defs.length) {
+    wrap.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:8px 0">No custom fields defined yet.</p>';
+    return;
+  }
+  // Group by type
+  const byType = {};
+  defs.forEach(d => { (byType[d.asset_type] = byType[d.asset_type]||[]).push(d); });
+  wrap.innerHTML = Object.entries(byType).map(([type, fields]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">${esc(type)}</div>
+      ${fields.map(d => `
+        <div class="cf-def-row">
+          <span class="cf-def-type">date</span>
+          <span style="font-size:13px;font-weight:600;flex:1">${esc(d.label)}</span>
+          <span style="font-size:11px;color:var(--muted);margin-right:8px">${esc(d.field_key)}</span>
+          <button onclick="deleteCustomField(${d.id})" style="background:rgba(255,59,92,0.08);border:1px solid rgba(255,59,92,0.2);color:var(--red);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif">Remove</button>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+async function addCustomField() {
+  const type  = document.getElementById('cf-new-type')?.value;
+  const label = document.getElementById('cf-new-label')?.value?.trim();
+  if (!type)  { toast('Select an asset type','error'); return; }
+  if (!label) { toast('Enter a field label','error'); return; }
+  try {
+    await apiFetch(FIELDS_API, { method:'POST', body: JSON.stringify({ asset_type: type, label }) });
+    document.getElementById('cf-new-label').value = '';
+    document.getElementById('cf-new-type').value  = '';
+    toast(`Custom field added to ${type}`, 'success');
+    await renderCfDefsList();
+  // Init collapsible sections
+  setTimeout(() => { wrapSettingsBodies(); initSettingsCollapse(); }, 50);
+    cfDefsCache = null; // bust cache
+  } catch(e) {
+    if (e.message?.includes('409')) toast('Field already exists for this type', 'error');
+  }
+}
+
+async function deleteCustomField(id) {
+  if (!confirm('Remove this custom field? All stored values will be deleted.')) return;
+  try {
+    await apiFetch(FIELDS_API + '?id=' + id, { method:'DELETE' });
+    toast('Custom field removed', 'success');
+    cfDefsCache = null; cfValuesCache = {};
+    await renderCfDefsList();
+  // Init collapsible sections
+  setTimeout(() => { wrapSettingsBodies(); initSettingsCollapse(); }, 50);
+  } catch(e) {}
+}
+
+function sortBy(k){if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}loadAssets();}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('search-input')?.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(loadAssets,300);});
+  document.getElementById('filter-type')?.addEventListener('change',loadAssets);
+  document.getElementById('filter-dept')?.addEventListener('change',loadAssets);
+  document.getElementById('filter-status')?.addEventListener('change',loadAssets);
+});
+
+function openAddModal(){
+  editingId=null;
+  document.getElementById('modal-title').textContent='Add Asset';
+  ['f-name','f-serial','f-assigned','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-type').value='Laptop';
+  document.getElementById('f-dept').value='';
+  document.getElementById('f-status').value='active';
+  document.getElementById('f-cost').value='';
+  document.getElementById('ai-price-result').style.display='none';
+  document.getElementById('f-type').value='Laptop';
+  document.getElementById('f-date').value='';
+  document.getElementById('f-eol').value='';
+  document.getElementById('f-cost').value='';
+  document.getElementById('f-eol-override').checked = false;
+  document.getElementById('save-btn').textContent='Save Asset';
+  document.getElementById('asset-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),300);
+}
+
+async function editAsset(id){
+  const a=await apiFetch(API+'?id='+encodeURIComponent(id));
+  editingId=id;
+  document.getElementById('modal-title').textContent='Edit Asset';
+  document.getElementById('f-name').value=a.name||'';
+  document.getElementById('f-type').value=a.type||'Laptop';
+  document.getElementById('f-serial').value=a.serial||'';
+  document.getElementById('f-assigned').value=a.assignedTo||'';
+  document.getElementById('f-dept').value=a.dept||'';
+  document.getElementById('f-status').value=a.status||'active';
+  document.getElementById('f-date').value=a.purchaseDate||'';
+  document.getElementById('f-eol').value=a.endOfLife||'';
+  document.getElementById('f-cost').value=a.cost||'';
+  document.getElementById('f-notes').value=a.notes||'';
+  document.getElementById('f-eol-override').checked=!!a.eolOverride;
+  loadCustomFieldsForModal(a.type, a.id);
+  document.getElementById('save-btn').textContent='Update Asset';
+  document.getElementById('asset-modal').classList.add('open');
+}
+
+async function saveAsset(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){toast('Please enter an asset name.','error');return;}
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const payload={id:editingId,name,
+    type:document.getElementById('f-type').value,
+    serial:document.getElementById('f-serial').value.trim(),
+    assigned_to:document.getElementById('f-assigned').value.trim(),
+    department:document.getElementById('f-dept').value.trim(),
+    status:document.getElementById('f-status').value,
+    purchase_date:document.getElementById('f-date').value||null,
+    end_of_life:document.getElementById('f-eol').value||null,
+    cost:document.getElementById('f-cost').value||null,
+    notes:document.getElementById('f-notes').value.trim(),
+    eol_override:document.getElementById('f-eol-override').checked};
+  try{
+    let savedId = editingId;
+    if(editingId){await apiFetch(API,{method:'PUT',body:JSON.stringify(payload)});toast('Asset updated!','success');}
+    else{const created=await apiFetch(API,{method:'POST',body:JSON.stringify(payload)});savedId=created.id;toast('Asset added!','success');}
+    await saveCustomFieldValues(savedId);
+    closeModal('asset-modal'); loadAssets(); loadDashboard();
+    // Refresh users if on that page
+    if (document.getElementById('page-users').classList.contains('active')) loadUsers();
+  }finally{btn.disabled=false; btn.textContent=editingId?'Update Asset':'Save Asset';}
+}
+
+async function deleteAsset(id){
+  // Kept for legacy batch; direct delete now goes through archive flow
+  if(!confirm('Delete this asset? This cannot be undone.'))return;
+  await apiFetch(API+'?id='+encodeURIComponent(id),{method:'DELETE'});
+  toast('Asset deleted.','success'); loadAssets(); loadDashboard();
+  if (document.getElementById('page-users').classList.contains('active')) loadUsers();
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+function showQR(id,name,serial){
+  document.getElementById('qr-canvas-wrap').innerHTML='<div id="qr-gen"></div>';
+  new QRCode(document.getElementById('qr-gen'),{
+    text:JSON.stringify({id,name,serial}),width:200,height:200,
+    colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('qr-info').innerHTML=`
+    <div class="qr-asset-id">${esc(id)}</div>
+    <div class="qr-asset-name">${esc(name)}</div>
+    ${serial?`<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:center;margin-top:4px">${esc(serial)}</div>`:''}`;
+  document.getElementById('qr-modal').classList.add('open');
+}
+
+function downloadQR(){
+  const canvas=document.querySelector('#qr-gen canvas');if(!canvas)return;
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=(document.querySelector('.qr-asset-id')?.textContent||'asset')+'-qr.png';
+  a.click();
+}
+
+function printQR(){
+  const canvas=document.querySelector('#qr-gen canvas');
+  const info=document.getElementById('qr-info').innerHTML;
+  if(!canvas)return;
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>Asset Label</title>
+    <style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px;background:#fff}
+    img{border:2px solid #eee;border-radius:8px;padding:8px;margin-bottom:12px}
+    .qr-asset-id{font-family:monospace;font-size:20px;font-weight:700;text-align:center;letter-spacing:2px;color:#000}
+    .qr-asset-name{font-size:13px;color:#555;text-align:center}</style></head>
+    <body><img src="${canvas.toDataURL()}">${info.replace(/var\(--[^)]+\)/g,'#333')}</body></html>`);
+  w.document.close();w.focus();setTimeout(()=>{w.print();w.close();},500);
+}
+
+function loadHtml5QrCode(cb){
+  if(window.Html5Qrcode){cb();return;}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+  s.onload=cb;document.head.appendChild(s);
+}
+function toggleScanner(){scannerActive?stopScanner():startScanner();}
+function startScanner(){
+  loadHtml5QrCode(()=>{
+    document.getElementById('reader').innerHTML='';
+    html5QrCode=new Html5Qrcode('reader');
+    html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},onScanSuccess,()=>{})
+    .then(()=>{
+      scannerActive=true;
+      document.getElementById('scan-btn').innerHTML='<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera';
+    }).catch(err=>{
+      document.getElementById('reader').innerHTML=`<div style="color:var(--red);padding:20px;font-size:13px;text-align:center">Camera error: ${err}<br><br>Must be on HTTPS and allow camera access.</div>`;
+    });
+  });
+}
+function stopScanner(){
+  html5QrCode?.stop().catch(()=>{});html5QrCode=null;scannerActive=false;
+  document.getElementById('scan-btn').innerHTML='<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg> Start Camera';
+  document.getElementById('reader').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Camera will appear here</div>';
+}
+async function onScanSuccess(decoded){
+  stopScanner();
+  let id=decoded;try{id=JSON.parse(decoded).id;}catch{}
+  const el=document.getElementById('scan-result');
+  try{
+    const a=await apiFetch(API+'?id='+encodeURIComponent(id));
+    el.className='scan-result visible';
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:4px;font-weight:700">✓ Asset Found</div>
+        <div style="font-size:17px;font-weight:800">${esc(a.name)}</div></div>
+        ${typeBadge(a.type)}
+      </div>
+      <div class="scan-result-grid">
+        ${sf('Asset ID',a.id,true)}${sf('Serial',a.serial||'—',true)}
+        ${sf('Assigned To',a.assignedTo||'Unassigned')}${sf('Department',a.dept||'—')}
+        ${sf('Purchase Date',a.purchaseDate||'—')}${sf('Cost',a.cost?'$'+Number(a.cost).toLocaleString():'—')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-primary" style="font-size:13px;min-height:44px" onclick="editAsset('${esc(a.id)}');showPage('assets')">Edit Asset</button>
+        <button class="btn btn-ghost" style="font-size:13px;min-height:44px" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">Show QR</button>
+      </div>`;
+  }catch{
+    el.className='scan-result visible';
+    el.innerHTML=`<div style="color:var(--red);font-weight:600">Asset not found: ${esc(decoded)}</div>`;
+  }
+}
+function sf(label,val,mono=false){
+  return `<div class="scan-field"><label>${label}</label><span style="${mono?'font-family:JetBrains Mono,monospace;font-size:12px':''}">${esc(String(val))}</span></div>`;
+}
+
+async function exportCSV(){
+  const assets=await apiFetch(API);
+  const h=['Asset ID','Name','Type','Serial','Assigned To','Department','Purchase Date','Cost','Notes'];
+  const rows=assets.map(a=>[a.id,a.name,a.type,a.serial,a.assignedTo,a.dept,a.purchaseDate,a.cost,a.notes].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`));
+  const csv=[h.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  const el=document.createElement('a');el.href=url;el.download='assets-export.csv';el.click();URL.revokeObjectURL(url);
+}
+
+async function exportADP(btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…`;
+  try {
+    const res = await fetch('api/adp_export.php');
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Export failed');
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const el   = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    el.href = url;
+    el.download = `AssetIQ_ADP_Export_${date}.csv`;
+    el.click();
+    URL.revokeObjectURL(url);
+    toast('ADP export downloaded!', 'success');
+  } catch(e) {
+    toast(e.message || 'ADP export failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+let toastTimer;
+function toast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className=`toast show ${type}`;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// Auto-set end of life = purchase date + 6 years
+function autoSetEOL(){
+  const d = document.getElementById('f-date').value;
+  if (!d) return;
+  const eol = new Date(d);
+  eol.setFullYear(eol.getFullYear() + 6);
+  document.getElementById('f-eol').value = eol.toISOString().split('T')[0];
+}
+
+// Returns 'critical' (past or within 3mo), 'warning' (within 12mo), or null
+function eolStatus(eolDate, override=false) {
+  if (override) return 'override';
+  if (!eolDate) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const eol   = new Date(eolDate);
+  const msLeft = eol - today;
+  const daysLeft = msLeft / 86400000;
+  if (daysLeft <= 90)  return 'critical';
+  if (daysLeft <= 365) return 'warning';
+  return null;
+}
+
+// Returns a flag badge HTML string or null
+function eolFlag(eolDate, override=false) {
+  if (override) return `<span class="flag-override">✓ EOL Acknowledged</span>`;
+  const s = eolStatus(eolDate);
+  if (!s) return null;
+  if (s === 'critical') {
+    const d = new Date(eolDate);
+    const past = d < new Date();
+    return `<span class="flag-critical">🔴 ${past ? 'EOL Overdue' : 'Replace Soon'}</span>`;
+  }
+  return `<span class="flag-warning">🟡 Due This Year</span>`;
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function typeBadge(t){return `<span class="badge ${T[t]||'badge-laptop'}">${esc(t)}</span>`;}
+function statusBadge(assignedTo, status) {
+  if (status === 'retired') return '<span class="badge badge-retired">Retired</span>';
+  return assignedTo ? '<span class="badge badge-assigned">Assigned</span>' : '<span class="badge badge-unassigned">Unassigned</span>';
+}
+
+// ── USERS ─────────────────────────────────────────────────────
+let allUsersData = [];
+let allDeptData  = [];
+let usersView    = 'user';
+
+const DEPT_COLORS = {IT:'#00e5ff',Finance:'#00ff88',Claims:'#ff8c00',Management:'#a78bfa',Marketing:'#ff3b5c',Underwriting:'#38bdf8',Agent:'#fb923c','No Longer At SEM':'#6b7280',Unassigned:'#5a6070'};
+const BADGE_MAP   = {Laptop:'badge-laptop',Desktop:'badge-desktop',Monitor:'badge-monitor',Peripheral:'badge-peripheral','Docking Station':'badge-docking',Printer:'badge-printer',Camera:'badge-camera'};
+
+function setUsersView(v) {
+  usersView = v;
+  document.getElementById('users-view-user').className = v==='user'?'btn btn-primary':'btn btn-ghost';
+  document.getElementById('users-view-dept').className = v==='dept'?'btn btn-primary':'btn btn-ghost';
+  document.getElementById('users-view-user').style.cssText='width:auto;padding:10px 14px;font-size:12px;min-height:40px';
+  document.getElementById('users-view-dept').style.cssText='width:auto;padding:10px 14px;font-size:12px;min-height:40px';
+  document.getElementById('users-search').placeholder = v==='user'?'Search users…':'Search departments…';
+  filterUsers();
+}
+
+async function loadUsers() {
+  document.getElementById('users-list').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('users-search').value   = '';
+  const assets = await apiFetch(API);
+
+  // Group by user
+  const userMap = {};
+  assets.forEach(a => {
+    if (!a.assignedTo?.trim()) return;
+    const n = a.assignedTo.trim();
+    if (!userMap[n]) userMap[n] = [];
+    userMap[n].push(a);
+  });
+  allUsersData = Object.entries(userMap).map(([name,assets])=>({name,assets})).sort((a,b)=>a.name.localeCompare(b.name));
+
+  // Group by department
+  const DEPTS = ['IT','Finance','Claims','Management','Marketing','Underwriting','Agent','No Longer At SEM','Unassigned'];
+  const deptMap = {};
+  DEPTS.forEach(d => deptMap[d] = []);
+  assets.forEach(a => {
+    const d = a.dept?.trim();
+    if (d && deptMap[d]!==undefined) deptMap[d].push(a);
+    else deptMap['Unassigned'].push(a);
+  });
+  allDeptData = DEPTS.map(name=>({name,assets:deptMap[name]})).filter(d=>d.assets.length>0);
+
+  filterUsers();
+}
+
+function filterUsers() {
+  const q = (document.getElementById('users-search')?.value||'').toLowerCase();
+  if (usersView==='user') {
+    renderUserCards(q ? allUsersData.filter(u=>u.name.toLowerCase().includes(q)) : allUsersData);
+  } else {
+    renderDeptCards(q ? allDeptData.filter(d=>d.name.toLowerCase().includes(q)) : allDeptData);
+  }
+}
+
+function buildTypeChips(assets) {
+  const counts = {};
+  assets.forEach(a => { counts[a.type]=(counts[a.type]||0)+1; });
+  return Object.entries(counts).map(([type,count])=>`<div class="user-asset-chip">
+    <span class="badge ${BADGE_MAP[type]||'badge-laptop'}" style="padding:1px 6px;font-size:10px">${esc(type)}</span>
+    <span style="color:var(--text)">${count}</span>
+  </div>`).join('');
+}
+
+function buildAssetDetailRow(a) {
+  const flag=eolFlag(a.endOfLife), status=eolStatus(a.endOfLife);
+  return `<div class="user-detail-asset" onclick="closeModal('user-modal');editAsset('${esc(a.id)}');showPage('assets')">
+    <div class="user-detail-asset-name">
+      <span style="flex:1;min-width:0">${esc(a.name)}</span>
+      <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">${typeBadge(a.type)}${flag||''}</div>
+    </div>
+    <div class="user-detail-asset-fields">
+      <div class="user-detail-field"><label>Asset ID</label><span style="font-family:'JetBrains Mono',monospace;font-size:11px">${esc(a.id)}</span></div>
+      <div class="user-detail-field"><label>Serial No.</label><span style="font-family:'JetBrains Mono',monospace;font-size:11px">${esc(a.serial)||'—'}</span></div>
+      <div class="user-detail-field"><label>Assigned To</label><span>${esc(a.assignedTo)||'—'}</span></div>
+      <div class="user-detail-field"><label>Department</label><span>${esc(a.dept)||'—'}</span></div>
+      <div class="user-detail-field"><label>Purchase Date</label><span>${a.purchaseDate||'—'}</span></div>
+      <div class="user-detail-field"><label>End of Life</label><span style="${status==='critical'?'color:var(--red)':status==='warning'?'color:var(--orange)':''}">${a.endOfLife||'—'}</span></div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px">
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+      Tap to edit
+    </div>
+  </div>`;
+}
+
+function renderUserCards(users) {
+  const el = document.getElementById('users-list');
+  if (!users.length) { el.innerHTML=`<div class="users-empty"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:.3;margin-bottom:12px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><h3>No users found</h3><p style="font-size:13px">Users appear here once assets are assigned to them.</p></div>`; return; }
+  el.innerHTML = users.map(u => {
+    const initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const hasFlags=u.assets.some(a=>eolStatus(a.endOfLife)!==null);
+    return `<div class="user-card" onclick="openUserModal('${esc(u.name)}')">
+      <div class="user-card-header">
+        <div class="user-avatar">${esc(initials)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name">${esc(u.name)}</div>
+          <div class="user-meta">${u.assets.length} asset${u.assets.length!==1?'s':''}${hasFlags?' · <span style="color:var(--orange)">⚠ EOL alert</span>':''}</div>
+        </div>
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);flex-shrink:0" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="user-asset-chips">${buildTypeChips(u.assets)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDeptCards(depts) {
+  const el = document.getElementById('users-list');
+  if (!depts.length) { el.innerHTML=`<div class="users-empty"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:.3;margin-bottom:12px"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><h3>No departments found</h3><p style="font-size:13px">Assign departments to assets to see them here.</p></div>`; return; }
+  el.innerHTML = depts.map(d => {
+    const color=DEPT_COLORS[d.name]||'#5a6070';
+    const hasFlags=d.assets.some(a=>eolStatus(a.endOfLife)!==null);
+    return `<div class="user-card" onclick="openDeptModal('${esc(d.name)}')">
+      <div class="user-card-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,${color}22,${color}44);border:1px solid ${color}33;color:${color}">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name">${esc(d.name)}</div>
+          <div class="user-meta">${d.assets.length} asset${d.assets.length!==1?'s':''}${hasFlags?' · <span style="color:var(--orange)">⚠ EOL alert</span>':''}</div>
+        </div>
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);flex-shrink:0" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="user-asset-chips">${buildTypeChips(d.assets)}</div>
+    </div>`;
+  }).join('');
+}
+
+function openUserModal(name) {
+  const user=allUsersData.find(u=>u.name===name); if(!user) return;
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-modal-name').innerHTML=`<div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:34px;height:34px;font-size:13px">${esc(initials)}</div>${esc(name)}</div>`;
+  document.getElementById('user-modal-count').textContent=`${user.assets.length} assigned asset${user.assets.length!==1?'s':''}`;
+  document.getElementById('user-modal-body').innerHTML=user.assets.map(a=>buildAssetDetailRow(a)).join('');
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openDeptModal(name) {
+  const dept=allDeptData.find(d=>d.name===name); if(!dept) return;
+  const color=DEPT_COLORS[name]||'#5a6070';
+  document.getElementById('user-modal-name').innerHTML=`<div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:34px;height:34px;background:linear-gradient(135deg,${color}22,${color}44);border:1px solid ${color}33;color:${color}"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>${esc(name)}</div>`;
+  document.getElementById('user-modal-count').textContent=`${dept.assets.length} asset${dept.assets.length!==1?'s':''}`;
+  document.getElementById('user-modal-body').innerHTML=dept.assets.map(a=>buildAssetDetailRow(a)).join('');
+  document.getElementById('user-modal').classList.add('open');
+}
+
+
+loadDashboard();
+loadAssets();
+
+// Mouse spotlight & tilt
+function cardMove(e,card){
+  var r=card.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  card.style.setProperty('--mx',(x/r.width*100).toFixed(1)+'%');
+  card.style.setProperty('--my',(y/r.height*100).toFixed(1)+'%');
+  var cx=x-r.width/2,cy=y-r.height/2;
+  var tx=(-cy/r.height*7).toFixed(2),ty=(cx/r.width*7).toFixed(2);
+  card.style.transform='perspective(700px) rotateX('+tx+'deg) rotateY('+ty+'deg) translateZ(3px)';
+}
+function cardLeave(card){
+  card.style.transform='';
+  card.style.setProperty('--mx','50%');
+  card.style.setProperty('--my','50%');
+}
+document.addEventListener('mousemove',function(e){
+  var card=e.target.closest&&e.target.closest('.stat-card,.user-card');
+  if(!card)return;
+  var r=card.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  card.style.setProperty('--mx',(x/r.width*100).toFixed(1)+'%');
+  card.style.setProperty('--my',(y/r.height*100).toFixed(1)+'%');
+});
+var _sObs=new MutationObserver(function(muts){
+  muts.forEach(function(m){m.addedNodes.forEach(function(n){
+    if(n.nodeType!==1)return;
+    var sel='.stat-card,.user-card';
+    var cards=n.matches&&n.matches(sel)?[n]:Array.from(n.querySelectorAll?n.querySelectorAll(sel):[]);
+    cards.forEach(function(card){
+      if(!card.querySelector('.card-spotlight')){
+        var sp=document.createElement('div');sp.className='card-spotlight';
+        card.insertBefore(sp,card.firstChild);
+      }
+    });
+  });});
+});
+_sObs.observe(document.body,{childList:true,subtree:true});
+
+</script>
+
+<!-- ARCHIVE PAGE -->
+<div class="page" id="page-archive">
+  <h1 class="page-title">Archive</h1>
+  <p class="page-sub" style="color:var(--muted);margin-top:-8px;margin-bottom:16px;font-size:14px">Archived assets are hidden from the main list. Restore or permanently delete them here.</p>
+  <div class="filter-bar" style="margin-bottom:16px">
+    <div class="search-wrap" style="flex:1">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="archive-search" placeholder="Search archived assets…" oninput="clearTimeout(archiveTimer);archiveTimer=setTimeout(loadArchive,300)">
+    </div>
+  </div>
+  <div id="archive-list" class="asset-list"></div>
+  <div id="archive-empty" class="empty-state" style="display:none;text-align:center;padding:60px 20px">
+    <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 12px;display:block;color:var(--muted)"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+    <h3 style="color:var(--muted);font-weight:600;margin-bottom:4px">No archived assets</h3>
+    <p style="color:var(--muted);font-size:13px">Assets you archive will appear here</p>
+  </div>
+</div>
+
+<!-- ACTIVITY PAGE -->
+<div class="page" id="page-activity">
+  <h1 class="page-title">Activity Log</h1>
+  <p class="page-sub" style="color:var(--muted);margin-top:-8px;margin-bottom:20px;font-size:14px">Full audit trail — every create, edit, archive, restore, and delete.</p>
+  <div id="activity-list" style="display:flex;flex-direction:column;gap:6px"></div>
+  <div id="activity-empty" class="empty-state" style="display:none;text-align:center;padding:60px 20px">
+    <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 12px;display:block;color:var(--muted)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <h3 style="color:var(--muted);font-weight:600;margin-bottom:4px">No activity yet</h3>
+    <p style="color:var(--muted);font-size:13px">Changes to assets will be tracked here</p>
+  </div>
+  <button id="activity-load-more" onclick="loadMoreActivity()" style="display:none;width:100%;margin-top:16px;padding:12px;background:var(--surface2);border:1px solid var(--border2);color:var(--fg2);border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;transition:background 0.2s">
+    Load more
+  </button>
+</div>
+
+
+<!-- REPORTS PAGE -->
+<div class="page" id="page-reports">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <h1 class="page-title" style="margin-bottom:4px">Reports</h1>
+      <p style="color:var(--muted);font-size:14px">Cost analysis, depreciation &amp; EOL forecasting</p>
+    </div>
+    <button class="btn btn-primary" onclick="exportCSV()" style="gap:8px">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+  </div>
+
+  <!-- Summary cards -->
+  <div id="report-summary-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+
+  <!-- By Department -->
+  <div class="report-section">
+    <h2 class="report-section-title">Value by Department</h2>
+    <div id="report-by-dept" class="report-table-wrap"></div>
+  </div>
+
+  <!-- By Type -->
+  <div class="report-section">
+    <h2 class="report-section-title">Inventory by Type</h2>
+    <div id="report-by-type" class="report-table-wrap"></div>
+  </div>
+
+  <!-- Depreciation -->
+  <div class="report-section">
+    <h2 class="report-section-title">Depreciation (Straight-line, 5 yr)</h2>
+    <div id="report-depreciation" class="report-table-wrap"></div>
+  </div>
+
+  <!-- EOL Status -->
+  <div class="report-section">
+    <h2 class="report-section-title">EOL &amp; Warranty Status</h2>
+    <div id="report-eol" class="report-table-wrap"></div>
+  </div>
+</div>
+
+<!-- SETTINGS PAGE -->
+<div class="page" id="page-settings">
+  <h1 class="page-title">Settings</h1>
+  <p style="color:var(--muted);font-size:14px;margin-top:-8px;margin-bottom:20px">Configure alerts and system preferences</p>
+
+  <div class="settings-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 class="settings-section-title">Low Stock Alerts</h2>
+        <p class="settings-section-sub">Alert when unassigned count drops below threshold</p>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" id="setting-alerts-enabled" onchange="saveAlertToggle(this.checked)">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
+    <div id="threshold-fields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+      <!-- filled by JS -->
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="saveThresholds()">Save Thresholds</button>
+  </div>
+
+  <div class="settings-section" id="cf-settings-section">
+    <h2 class="settings-section-title">Depreciation</h2>
+    <p class="settings-section-sub">Straight-line depreciation lifetime in years</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+      <input type="number" id="setting-depr-years" min="1" max="20" value="5" style="width:80px">
+      <button class="btn btn-primary" onclick="saveDeprYears()">Save</button>
+    </div>
+  </div>
+
+  <!-- Custom Fields -->
+  <div class="settings-section" id="cf-settings-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 class="settings-section-title">Custom Date Fields</h2>
+        <p class="settings-section-sub">Add extra date fields to specific asset types (e.g. Warranty Expiry, Last Service Date)</p>
+      </div>
+    </div>
+    <!-- Add field form -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <select id="cf-new-type" style="flex:1;min-width:120px">
+        <option value="">Asset type…</option>
+        <option>Laptop</option><option>Desktop</option><option>Monitor</option>
+        <option>Docking Station</option><option>Printer</option><option>Camera</option><option>Other</option>
+      </select>
+      <input type="text" id="cf-new-label" placeholder="Field label (e.g. Warranty Expiry)" style="flex:2;min-width:160px">
+      <button class="btn btn-primary" onclick="addCustomField()" style="white-space:nowrap">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        Add Field
+      </button>
+    </div>
+    <!-- Existing fields list -->
+    <div id="cf-defs-list">
+      <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
+    </div>
+  </div>
+
+
+</div>
+
+</body>
+</html>

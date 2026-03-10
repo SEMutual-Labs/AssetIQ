@@ -3,7 +3,7 @@
 //  AssetIQ — Auth Helper
 // ─────────────────────────────────────────────────────────────
 
-require_once __DIR__ . '/../config.php';
+require_once '/home/1280766.cloudwaysapps.com/awhfqygezp/private_html/config.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_samesite', 'Lax');
@@ -43,7 +43,6 @@ function auth_logout(): void {
             $p['path'], $p['domain'], $p['secure'], $p['httponly']);
     }
     session_destroy();
-    // Also sign out of Microsoft
     $logoutUrl = 'https://login.microsoftonline.com/' . INTUNE_TENANT_ID
         . '/oauth2/v2.0/logout?post_logout_redirect_uri=' . urlencode(APP_URL . '/auth/login.php');
     header('Location: ' . $logoutUrl);
@@ -51,10 +50,7 @@ function auth_logout(): void {
 }
 
 function auth_build_login_url(): string {
-    // Use a signed state token instead of session-stored state
-    // This avoids session persistence issues across redirect
     $state = auth_make_state();
-
     $params = http_build_query([
         'client_id'     => INTUNE_CLIENT_ID,
         'response_type' => 'code',
@@ -63,15 +59,13 @@ function auth_build_login_url(): string {
         'scope'         => 'openid profile email User.Read',
         'state'         => $state,
     ]);
-
     return "https://login.microsoftonline.com/" . INTUNE_TENANT_ID . "/oauth2/v2.0/authorize?$params";
 }
 
 function auth_make_state(): string {
-    // State = timestamp:hmac — no session dependency
-    $ts      = time();
-    $secret  = defined('APP_SECRET') ? APP_SECRET : (INTUNE_CLIENT_SECRET . INTUNE_CLIENT_ID);
-    $hmac    = substr(hash_hmac('sha256', $ts, $secret), 0, 16);
+    $ts     = time();
+    $secret = defined('APP_SECRET') ? APP_SECRET : (INTUNE_CLIENT_SECRET . INTUNE_CLIENT_ID);
+    $hmac   = substr(hash_hmac('sha256', $ts, $secret), 0, 16);
     return base64_encode("$ts:$hmac");
 }
 
@@ -79,7 +73,6 @@ function auth_verify_state(string $state): bool {
     $decoded = base64_decode($state);
     if (!$decoded || !str_contains($decoded, ':')) return false;
     [$ts, $hmac] = explode(':', $decoded, 2);
-    // Must be within 10 minutes
     if (abs(time() - (int)$ts) > 600) return false;
     $secret   = defined('APP_SECRET') ? APP_SECRET : (INTUNE_CLIENT_SECRET . INTUNE_CLIENT_ID);
     $expected = substr(hash_hmac('sha256', $ts, $secret), 0, 16);
