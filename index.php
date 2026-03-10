@@ -2115,6 +2115,10 @@ function assetCard(a) {
       <div class="asset-card-field"><label>Department</label><span>${a.dept?esc(a.dept):'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>Purchase Date</label><span>${a.purchaseDate||'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>End of Life</label><span style="${!a.eolOverride&&eolStatus(a.endOfLife)==='critical'?'color:var(--red)':!a.eolOverride&&eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
+      ${a.notes ? `<div style="grid-column:1/-1;display:flex;align-items:flex-start;gap:6px;padding-top:6px;border-top:1px solid var(--border);margin-top:2px">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted);flex-shrink:0;margin-top:2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span style="font-size:11px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${esc(a.notes)}</span>
+      </div>` : ''}
       ${renderCustomFieldChips(a.id, a.type)}
     </div>
     <div class="asset-card-actions">
