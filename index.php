@@ -382,6 +382,7 @@ body::before {
   white-space: nowrap;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.3);
 }
+.batch-btn-reassign { background: rgba(0,255,136,0.1); color: var(--green);  border: 1px solid rgba(0,255,136,0.3); }
 .batch-btn-ai  { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
 .batch-btn-del { background: rgba(255,59,92,0.1); color: var(--red);    border: 1px solid rgba(255,59,92,0.3); }
 .batch-btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
@@ -823,13 +824,69 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
 .users-empty { text-align:center; padding:48px 20px; color:var(--muted); }
 .users-empty h3 { font-size:17px; font-weight:700; color:var(--text); margin:12px 0 6px; }
 
+.intune-setup-card {
+  background: linear-gradient(145deg, #0f1219, #0c0e16);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px 24px; max-width: 600px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 8px 32px rgba(0,0,0,0.4);
+}
+.intune-setup-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px; color: var(--accent);
+  box-shadow: 0 0 20px rgba(0,229,255,0.08);
+}
+.intune-setup-card h3 { font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.intune-setup-card p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+.intune-setup-card code {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  padding: 2px 6px; border-radius: 4px; color: var(--accent);
+}
+.setup-steps { display: flex; flex-direction: column; gap: 14px; }
+.setup-step  { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.5; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+  box-shadow: 0 0 12px rgba(0,229,255,0.25);
+}
+.intune-device-card {
+  background: linear-gradient(145deg, #0f1219, #0c0e15);
+  border: 1px solid var(--border);
+  border-radius: 13px; padding: 14px 16px; margin-bottom: 8px;
+  display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 8px rgba(0,0,0,0.3);
+}
+.intune-device-card:hover  { border-color: rgba(0,229,255,0.3); }
+.intune-device-card.selected { border-color: var(--accent); background: rgba(0,229,255,0.04); box-shadow: 0 0 20px rgba(0,229,255,0.08); }
+.intune-device-card.already-exists { opacity: 0.45; }
+.intune-check {
+  width: 20px; height: 20px; border-radius: 6px;
+  border: 1.5px solid var(--border2); flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; background: var(--surface2);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+}
+.intune-device-card.selected .intune-check {
+  background: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0,229,255,0.3);
+}
+.intune-device-info { flex: 1; min-width: 0; }
+.intune-device-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.intune-device-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.intune-badges { display: flex; flex-wrap: wrap; gap: 5px; }
 .compliance-compliant    { background:rgba(0,255,136,0.1);  color:var(--green);  border: 1px solid rgba(0,255,136,0.2); }
 .compliance-noncompliant { background:rgba(255,59,92,0.1);  color:var(--red);    border: 1px solid rgba(255,59,92,0.2); }
 .compliance-unknown      { background:rgba(74,84,104,0.15); color:var(--muted);  border: 1px solid rgba(74,84,104,0.2); }
 .select-all-row { display:flex; align-items:center; gap:10px; padding:8px 0 12px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
 
 /* MOUSE SPOTLIGHT */
-.asset-card,.stat-card,.user-card { --mx:50%;--my:50%; }
+.asset-card,.stat-card,.user-card,.intune-device-card { --mx:50%;--my:50%; }
 .card-spotlight {
   position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
   background:radial-gradient(200px circle at var(--mx) var(--my),rgba(0,229,255,0.075) 0%,transparent 65%);
@@ -843,7 +900,7 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
   );
 }
 .asset-card:hover .card-spotlight,.stat-card:hover .card-spotlight,
-.asset-card:hover .card-spotlight,.stat-card:hover .card-spotlight,
+.user-card:hover .card-spotlight,.intune-device-card:hover .card-spotlight { opacity:1; }
 .asset-card:hover { border-color:rgba(0,229,255,0.22) !important; }
 .stat-card.clickable:hover { border-color: color-mix(in srgb, var(--c,var(--accent)) 45%, transparent) !important; }
 
@@ -1320,6 +1377,10 @@ input[type="checkbox"] {
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Users
     </div>
+    <div class="drawer-nav-item" id="nav-intune" onclick="showPage('intune');closeDrawer()">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+      Intune
+    </div>
     <div class="drawer-nav-item" id="nav-settings" onclick="showPage('settings');closeDrawer()" style="position:relative">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -1454,6 +1515,10 @@ input[type="checkbox"] {
   <div class="batch-bar" id="batch-bar">
     <div class="batch-count" id="batch-count">0 selected</div>
     <div class="batch-actions">
+      <button class="batch-btn batch-btn-reassign" onclick="openBatchReassign()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Reassign
+      </button>
       <button class="batch-btn batch-btn-ai" onclick="batchEstimate()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         AI Estimate
@@ -1606,6 +1671,57 @@ input[type="checkbox"] {
   </div>
 </div>
 
+<!-- BULK REASSIGN MODAL -->
+<div class="overlay" id="reassign-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Bulk Reassign</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="reassign-modal-sub">0 assets selected</div>
+      </div>
+      <button class="close-btn" onclick="closeModal('reassign-modal')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Update the assigned user and/or department for all selected assets. Leave a field blank to keep existing values.</p>
+      <div class="form-stack" style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label class="form-label">Assigned To <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
+          <input type="text" id="reassign-user" placeholder="e.g. John Smith or leave blank">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
+          <select id="reassign-dept">
+            <option value="">— Keep existing —</option>
+            <option value="__clear__">— Clear department —</option>
+            <option>IT</option><option>Finance</option>
+            <option>Claims</option><option>Management</option><option>Marketing</option>
+            <option>Underwriting</option><option>Agent</option>
+            <option>No Longer At SEM</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
+          <select id="reassign-status">
+            <option value="">— Keep existing —</option>
+            <option value="active">Active</option>
+            <option value="retired">Retired</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-direction:row;justify-content:flex-end;gap:10px">
+      <button class="btn btn-primary" id="reassign-save-btn" onclick="batchReassign()" style="width:auto;min-width:140px">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply to Selected
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('reassign-modal')" style="width:auto;min-width:90px">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- QR MODAL -->
 <div class="overlay" id="qr-modal">
   <div class="modal" style="max-width:420px">
@@ -1666,6 +1782,61 @@ input[type="checkbox"] {
   </div>
 </div>
 
+<!-- INTUNE SYNC PAGE -->
+<div class="page" id="page-intune">
+  <div class="page-title">Intune Sync</div>
+  <div class="page-sub">Import devices directly from Microsoft Intune</div>
+
+  <!-- Unconfigured state -->
+  <div id="intune-unconfigured" style="display:none">
+    <div class="intune-setup-card">
+      <div class="intune-setup-icon">
+        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+      </div>
+      <h3>Connect to Microsoft Intune</h3>
+      <p>Add your Azure App Registration credentials to <code>config.php</code> to enable Intune sync.</p>
+      <div class="setup-steps">
+        <div class="setup-step"><span class="step-num">1</span><div><strong>Register an app</strong> in Azure Portal → Entra ID → App registrations → New registration</div></div>
+        <div class="setup-step"><span class="step-num">2</span><div><strong>Add API permission:</strong> Microsoft Graph → Application → <code>DeviceManagementManagedDevices.Read.All</code> → Grant admin consent</div></div>
+        <div class="setup-step"><span class="step-num">3</span><div><strong>Create a client secret</strong> under Certificates &amp; secrets and copy the value</div></div>
+        <div class="setup-step"><span class="step-num">4</span><div><strong>Edit config.php</strong> and fill in <code>INTUNE_TENANT_ID</code>, <code>INTUNE_CLIENT_ID</code>, <code>INTUNE_CLIENT_SECRET</code></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configured state -->
+  <div id="intune-configured">
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" id="intune-fetch-btn" onclick="intuneFetch()" style="width:auto;min-width:160px">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Fetch from Intune
+      </button>
+      <button class="btn btn-ghost" onclick="intuneTestConnection()" style="width:auto">Test Connection</button>
+      <div id="intune-status" style="font-size:13px;color:var(--muted)"></div>
+    </div>
+
+    <!-- Filter bar -->
+    <div id="intune-filter-bar" style="display:none;margin-bottom:14px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="search-wrap" style="flex:1;min-width:200px">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="intune-search" placeholder="Search devices…" oninput="renderIntuneDevices()">
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="intune-hide-existing" onchange="renderIntuneDevices()" style="width:auto;padding:0;background:none;border:none"> Hide already imported
+        </label>
+        <button class="btn btn-primary" onclick="intuneImportSelected()" style="width:auto;min-width:140px" id="intune-import-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Import Selected
+        </button>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted)" id="intune-selection-info"></div>
+    </div>
+
+    <!-- Device list -->
+    <div id="intune-device-list"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1714,6 +1885,7 @@ function showPage(name) {
   if(page) page.classList.add('active');
   if(name==='dashboard') { loadDashboard(); checkAlerts(); }
   if(name==='assets')    loadAssets();
+  if(name==='intune') { showPage('settings'); setTimeout(()=>switchSettingsTab('intune'),50); return; }
   if(name==='users')     loadUsers();
   if(name==='archive')   loadArchive();
   if(name==='activity')  loadActivity();
@@ -2064,6 +2236,67 @@ async function batchDelete() {
   toast(`Deleted ${done} asset${done>1?'s':''}`, 'success');
   cancelBatchMode();
   loadAssets();
+}
+
+function openBatchReassign() {
+  const n = selectedIds.size;
+  if (!n) return;
+  document.getElementById('reassign-modal-sub').textContent = `${n} asset${n>1?'s':''} selected`;
+  document.getElementById('reassign-user').value   = '';
+  document.getElementById('reassign-dept').value   = '';
+  document.getElementById('reassign-status').value = '';
+  document.getElementById('reassign-modal').classList.add('open');
+}
+
+async function batchReassign() {
+  const ids      = [...selectedIds];
+  const newUser  = document.getElementById('reassign-user').value.trim();
+  const newDept  = document.getElementById('reassign-dept').value;
+  const newStatus= document.getElementById('reassign-status').value;
+
+  if (!newUser && !newDept && !newStatus) {
+    toast('Enter at least one field to update.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('reassign-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const assets = cachedAssets.filter(a => ids.includes(a.id));
+  let done = 0, failed = 0;
+
+  for (const a of assets) {
+    try {
+      await apiFetch(API, {
+        method: 'PUT',
+        body: JSON.stringify({
+          id:           a.id,
+          name:         a.name,
+          type:         a.type,
+          serial:       a.serial,
+          assigned_to:  newUser  !== ''           ? newUser                     : a.assignedTo,
+          department:   newDept  === '__clear__'  ? ''      : newDept  !== '' ? newDept  : a.dept,
+          status:       newStatus !== ''           ? newStatus                  : a.status,
+          purchase_date: a.purchaseDate,
+          end_of_life:   a.endOfLife,
+          cost:          a.cost,
+          notes:         a.notes,
+          eol_override:  a.eolOverride ? 1 : 0,
+        })
+      });
+      done++;
+    } catch { failed++; }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Apply to Selected`;
+  closeModal('reassign-modal');
+  cancelBatchMode();
+  loadAssets();
+  loadDashboard();
+  if (document.getElementById('page-users').classList.contains('active')) loadUsers();
+  toast(`Reassigned ${done} asset${done!==1?'s':''}${failed?` (${failed} failed)`:''}`, done ? 'success' : 'error');
 }
 
 async function batchEstimate() {
@@ -2902,6 +3135,28 @@ function closeDrawer() {
   },{passive:true});
 })();
 
+// ── Settings Tabs ─────────────────────────────────────────────────────────────
+function switchSettingsTab(tab) {
+  document.getElementById('settings-tab-general').style.display = tab==='general' ? '' : 'none';
+  document.getElementById('settings-tab-intune').style.display  = tab==='intune'  ? '' : 'none';
+  document.querySelectorAll('.settings-tab').forEach(b => {
+    const active = b.id === 'stab-'+tab;
+    b.style.background = active ? 'rgba(0,229,255,0.1)' : 'transparent';
+    b.style.color      = active ? 'var(--accent)' : 'var(--muted)';
+  });
+  if(tab==='intune') {
+    const src   = document.getElementById('page-intune');
+    const mount = document.getElementById('settings-intune-mount');
+    if(src && mount && !mount.contains(src)) {
+      mount.innerHTML = '';
+      mount.appendChild(src);
+      src.style.padding = '0';
+      src.style.display = 'block';
+    }
+    initIntunePage();
+  }
+}
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DATE RANGE FILTER
@@ -3504,6 +3759,152 @@ function openDeptModal(name) {
   document.getElementById('user-modal').classList.add('open');
 }
 
+// ── INTUNE ────────────────────────────────────────────────────
+const INTUNE_API = 'api/intune.php';
+let intuneDevices = [];
+let intuneSelected = new Set();
+
+async function initIntunePage() {
+  try {
+    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test'})});
+    const data = await res.json();
+    const show = !data.unconfigured;
+    document.getElementById('intune-unconfigured').style.display = show ? 'none'  : 'block';
+    document.getElementById('intune-configured').style.display   = show ? 'block' : 'none';
+  } catch {
+    document.getElementById('intune-unconfigured').style.display = 'none';
+    document.getElementById('intune-configured').style.display   = 'block';
+  }
+}
+
+async function intuneTestConnection() {
+  const status = document.getElementById('intune-status');
+  status.textContent = 'Testing…'; status.style.color = 'var(--muted)';
+  try {
+    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test'})});
+    const data = await res.json();
+    if (data.success) { status.textContent = '✓ Connected to Intune'; status.style.color = 'var(--green)'; }
+    else              { status.textContent = '✗ ' + (data.error||'Failed'); status.style.color = 'var(--red)'; }
+  } catch(e) { status.textContent = '✗ ' + e.message; status.style.color = 'var(--red)'; }
+}
+
+async function intuneFetch() {
+  const btn    = document.getElementById('intune-fetch-btn');
+  const status = document.getElementById('intune-status');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></div> Fetching…';
+  status.textContent = ''; intuneDevices = []; intuneSelected = new Set();
+  document.getElementById('intune-filter-bar').style.display = 'none';
+  document.getElementById('intune-device-list').innerHTML = '<div class="spinner"></div>';
+  try {
+    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'fetch'})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    intuneDevices = data.devices || [];
+    status.textContent = `Found ${data.total} devices — ${data.new} not yet imported`;
+    status.style.color = 'var(--muted)';
+    document.getElementById('intune-filter-bar').style.display = 'block';
+    intuneDevices.forEach((_,i) => { if (!intuneDevices[i].alreadyExists) intuneSelected.add(i); });
+    renderIntuneDevices();
+  } catch(e) {
+    document.getElementById('intune-device-list').innerHTML = `<div class="eol-banner">✗ ${esc(e.message)}</div>`;
+    status.textContent = '';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Fetch from Intune';
+  }
+}
+
+function renderIntuneDevices() {
+  const q         = (document.getElementById('intune-search')?.value||'').toLowerCase();
+  const hideExist = document.getElementById('intune-hide-existing')?.checked;
+  const list      = document.getElementById('intune-device-list');
+  const selInfo   = document.getElementById('intune-selection-info');
+  if (!intuneDevices.length) { list.innerHTML = ''; return; }
+
+  const filtered = intuneDevices.filter((d,i) => {
+    if (hideExist && d.alreadyExists) return false;
+    if (q && !([d.deviceName,d.model,d.serial,d.assignedTo,d.os].join(' ').toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  const newCount   = [...intuneSelected].filter(i => !intuneDevices[i]?.alreadyExists).length;
+  selInfo.textContent = `${intuneSelected.size} selected · ${newCount} new to import`;
+
+  const filteredIdx = filtered.map(d => intuneDevices.indexOf(d));
+  const allSelected = filteredIdx.length > 0 && filteredIdx.every(i => intuneSelected.has(i));
+
+  list.innerHTML = `
+    <div class="select-all-row" onclick="intuneToggleAll()">
+      <div class="intune-check" style="${allSelected?'background:var(--accent);border-color:var(--accent)':''}">
+        ${allSelected?'<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':''}
+      </div>
+      <span>${allSelected?'Deselect all':'Select all'} (${filtered.length} shown)</span>
+    </div>
+    ${filtered.map(d => {
+      const idx = intuneDevices.indexOf(d);
+      const sel = intuneSelected.has(idx);
+      const comp = (d.compliance||'unknown').toLowerCase();
+      return `<div class="intune-device-card ${sel?'selected':''} ${d.alreadyExists?'already-exists':''}" onclick="intuneToggle(${idx})">
+        <div class="intune-check">${sel?'<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
+        <div class="intune-device-info">
+          <div class="intune-device-name">${esc(d.deviceName)}</div>
+          <div class="intune-device-meta">
+            ${d.model?`<span>📦 ${esc(d.model)}</span>`:''}
+            ${d.serial?`<span>🔢 ${esc(d.serial)}</span>`:''}
+            ${d.assignedTo?`<span>👤 ${esc(d.assignedTo)}</span>`:''}
+            ${d.enrolledDate?`<span>📅 ${d.enrolledDate}</span>`:''}
+          </div>
+          <div class="intune-badges">
+            ${typeBadge(d.type)}
+            <span class="badge compliance-${comp}">${comp}</span>
+            ${d.alreadyExists?'<span class="badge" style="background:rgba(90,96,112,0.15);color:var(--muted)">Already imported</span>':''}
+            ${d.os?`<span class="badge" style="background:var(--surface2);color:var(--muted)">${esc(d.os.trim())}</span>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function intuneToggle(idx) {
+  if (intuneSelected.has(idx)) intuneSelected.delete(idx); else intuneSelected.add(idx);
+  renderIntuneDevices();
+}
+
+function intuneToggleAll() {
+  const q         = (document.getElementById('intune-search')?.value||'').toLowerCase();
+  const hideExist = document.getElementById('intune-hide-existing')?.checked;
+  const filtered  = intuneDevices.filter(d => {
+    if (hideExist && d.alreadyExists) return false;
+    if (q && !([d.deviceName,d.model,d.serial,d.assignedTo].join(' ').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const idxs       = filtered.map(d => intuneDevices.indexOf(d));
+  const allSelected = idxs.every(i => intuneSelected.has(i));
+  if (allSelected) idxs.forEach(i => intuneSelected.delete(i));
+  else             idxs.forEach(i => intuneSelected.add(i));
+  renderIntuneDevices();
+}
+
+async function intuneImportSelected() {
+  if (intuneSelected.size === 0) { toast('No devices selected.','error'); return; }
+  const toImport = [...intuneSelected].map(i => intuneDevices[i]).filter(d => !d.alreadyExists);
+  if (toImport.length === 0) { toast('All selected are already imported.','error'); return; }
+  if (!confirm(`Import ${toImport.length} device${toImport.length>1?'s':''} into AssetIQ?`)) return;
+  const btn = document.getElementById('intune-import-btn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+  try {
+    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'import',devices:toImport})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    toast(`✓ Imported ${data.imported} device${data.imported>1?'s':''}${data.skipped?' ('+data.skipped+' skipped)':''}`, 'success');
+    await intuneFetch(); loadDashboard();
+  } catch(e) { toast(e.message,'error'); }
+  finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Import Selected';
+  }
+}
 
 loadDashboard();
 loadAssets();
@@ -3523,7 +3924,7 @@ function cardLeave(card){
   card.style.setProperty('--my','50%');
 }
 document.addEventListener('mousemove',function(e){
-  var card=e.target.closest&&e.target.closest('.stat-card,.user-card');
+  var card=e.target.closest&&e.target.closest('.stat-card,.user-card,.intune-device-card');
   if(!card)return;
   var r=card.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   card.style.setProperty('--mx',(x/r.width*100).toFixed(1)+'%');
@@ -3532,7 +3933,7 @@ document.addEventListener('mousemove',function(e){
 var _sObs=new MutationObserver(function(muts){
   muts.forEach(function(m){m.addedNodes.forEach(function(n){
     if(n.nodeType!==1)return;
-    var sel='.stat-card,.user-card';
+    var sel='.stat-card,.user-card,.intune-device-card';
     var cards=n.matches&&n.matches(sel)?[n]:Array.from(n.querySelectorAll?n.querySelectorAll(sel):[]);
     cards.forEach(function(card){
       if(!card.querySelector('.card-spotlight')){
@@ -3625,7 +4026,11 @@ _sObs.observe(document.body,{childList:true,subtree:true});
 <div class="page" id="page-settings">
   <h1 class="page-title">Settings</h1>
   <p style="color:var(--muted);font-size:14px;margin-top:-8px;margin-bottom:20px">Configure alerts and system preferences</p>
-
+  <div style="display:flex;gap:4px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content">
+    <button id="stab-general" class="settings-tab" onclick="switchSettingsTab('general')" style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Outfit',sans-serif;background:rgba(0,229,255,0.1);color:var(--accent);transition:all 0.15s">General</button>
+    <button id="stab-intune"  class="settings-tab" onclick="switchSettingsTab('intune')"  style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Outfit',sans-serif;background:transparent;color:var(--muted);transition:all 0.15s">Intune</button>
+  </div>
+  <div id="settings-tab-general">
   <div class="settings-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
@@ -3678,8 +4083,12 @@ _sObs.observe(document.body,{childList:true,subtree:true});
       <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
     </div>
   </div>
+  </div><!-- /settings-tab-general -->
 
-
+  <!-- Intune tab -->
+  <div id="settings-tab-intune" style="display:none">
+    <div id="settings-intune-mount"></div>
+  </div>
 </div>
 
 </body>
