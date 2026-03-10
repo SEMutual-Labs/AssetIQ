@@ -382,9 +382,9 @@ body::before {
   white-space: nowrap;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.3);
 }
-.batch-btn-reassign { background: rgba(0,255,136,0.1); color: var(--green);  border: 1px solid rgba(0,255,136,0.3); }
 .batch-btn-ai  { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
 .batch-btn-del { background: rgba(255,59,92,0.1); color: var(--red);    border: 1px solid rgba(255,59,92,0.3); }
+.batch-btn-archive{ background: rgba(255,180,0,0.1); color: var(--amber); border: 1px solid rgba(255,180,0,0.3); }
 .batch-btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
 .batch-btn:active { opacity: 0.7; transform: scale(0.97); }
 .batch-progress {
@@ -1515,9 +1515,9 @@ input[type="checkbox"] {
   <div class="batch-bar" id="batch-bar">
     <div class="batch-count" id="batch-count">0 selected</div>
     <div class="batch-actions">
-      <button class="batch-btn batch-btn-reassign" onclick="openBatchReassign()">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Reassign
+      <button class="batch-btn batch-btn-archive" onclick="batchArchive()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        Archive
       </button>
       <button class="batch-btn batch-btn-ai" onclick="batchEstimate()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -1607,7 +1607,11 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Serial Number</label>
-            <input type="text" id="f-serial" placeholder="SN-XXXX" autocomplete="off">
+            <input type="text" id="f-serial" placeholder="SN-XXXX" autocomplete="off" oninput="checkSerialDuplicate(this.value)">
+            <div id="serial-dupe-warn" style="display:none;margin-top:5px;padding:7px 10px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:7px;font-size:12px;font-weight:600;color:var(--amber);align-items:center;gap:7px">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span id="serial-dupe-msg"></span>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Assigned To</label>
@@ -1667,57 +1671,6 @@ input[type="checkbox"] {
     <div class="modal-footer">
       <button class="btn btn-primary" id="save-btn" onclick="saveAsset()">Save Asset</button>
       <button class="btn btn-ghost" onclick="closeModal('asset-modal')">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- BULK REASSIGN MODAL -->
-<div class="overlay" id="reassign-modal">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-handle"></div>
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Bulk Reassign</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="reassign-modal-sub">0 assets selected</div>
-      </div>
-      <button class="close-btn" onclick="closeModal('reassign-modal')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6">Update the assigned user and/or department for all selected assets. Leave a field blank to keep existing values.</p>
-      <div class="form-stack" style="display:flex;flex-direction:column;gap:14px">
-        <div class="form-group">
-          <label class="form-label">Assigned To <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
-          <input type="text" id="reassign-user" placeholder="e.g. John Smith or leave blank">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Department <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
-          <select id="reassign-dept">
-            <option value="">— Keep existing —</option>
-            <option value="__clear__">— Clear department —</option>
-            <option>IT</option><option>Finance</option>
-            <option>Claims</option><option>Management</option><option>Marketing</option>
-            <option>Underwriting</option><option>Agent</option>
-            <option>No Longer At SEM</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Status <span style="color:var(--muted);font-weight:400">(leave blank to keep existing)</span></label>
-          <select id="reassign-status">
-            <option value="">— Keep existing —</option>
-            <option value="active">Active</option>
-            <option value="retired">Retired</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer" style="flex-direction:row;justify-content:flex-end;gap:10px">
-      <button class="btn btn-primary" id="reassign-save-btn" onclick="batchReassign()" style="width:auto;min-width:140px">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        Apply to Selected
-      </button>
-      <button class="btn btn-ghost" onclick="closeModal('reassign-modal')" style="width:auto;min-width:90px">Cancel</button>
     </div>
   </div>
 </div>
@@ -2071,7 +2024,6 @@ async function loadAssets() {
       <td><div class="tbl-actions">
         <button class="tbl-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">QR</button>
         <button class="tbl-btn" onclick="editAsset('${esc(a.id)}')">Edit</button>
-        <button class="tbl-btn" onclick="copyAsset('${esc(a.id)}')">Copy</button>
         <button class="tbl-btn danger" onclick="deleteAsset('${esc(a.id)}')">Del</button>
       </div></td>
     </tr>`).join('');
@@ -2115,10 +2067,6 @@ function assetCard(a) {
       <div class="asset-card-field"><label>Department</label><span>${a.dept?esc(a.dept):'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>Purchase Date</label><span>${a.purchaseDate||'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>End of Life</label><span style="${!a.eolOverride&&eolStatus(a.endOfLife)==='critical'?'color:var(--red)':!a.eolOverride&&eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
-      ${a.notes ? `<div style="grid-column:1/-1;display:flex;align-items:flex-start;gap:6px;padding-top:6px;border-top:1px solid var(--border);margin-top:2px">
-        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted);flex-shrink:0;margin-top:2px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span style="font-size:11px;color:var(--muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${esc(a.notes)}</span>
-      </div>` : ''}
       ${renderCustomFieldChips(a.id, a.type)}
     </div>
     <div class="asset-card-actions">
@@ -2135,10 +2083,6 @@ function assetCard(a) {
       </button>
       <div class="card-more-menu" id="card-menu-${esc(a.id)}">
         ${eolMenuHtml(a.id, a.eolOverride, isEolActive)}
-        <div class="card-menu-item" onclick="copyAsset('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          Copy Asset
-        </div>
         <div class="card-menu-item" onclick="showAssetLog('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           View History
@@ -2247,65 +2191,21 @@ async function batchDelete() {
   loadAssets();
 }
 
-function openBatchReassign() {
-  const n = selectedIds.size;
-  if (!n) return;
-  document.getElementById('reassign-modal-sub').textContent = `${n} asset${n>1?'s':''} selected`;
-  document.getElementById('reassign-user').value   = '';
-  document.getElementById('reassign-dept').value   = '';
-  document.getElementById('reassign-status').value = '';
-  document.getElementById('reassign-modal').classList.add('open');
-}
-
-async function batchReassign() {
-  const ids      = [...selectedIds];
-  const newUser  = document.getElementById('reassign-user').value.trim();
-  const newDept  = document.getElementById('reassign-dept').value;
-  const newStatus= document.getElementById('reassign-status').value;
-
-  if (!newUser && !newDept && !newStatus) {
-    toast('Enter at least one field to update.', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('reassign-save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-
-  const assets = cachedAssets.filter(a => ids.includes(a.id));
+async function batchArchive() {
+  const ids = [...selectedIds];
+  if (!ids.length) return;
+  if (!confirm(`Archive ${ids.length} asset${ids.length>1?"s":""}? They can be restored from the Archive page.`)) return;
   let done = 0, failed = 0;
-
-  for (const a of assets) {
+  for (const id of ids) {
     try {
-      await apiFetch(API, {
-        method: 'PUT',
-        body: JSON.stringify({
-          id:           a.id,
-          name:         a.name,
-          type:         a.type,
-          serial:       a.serial,
-          assigned_to:  newUser  !== ''           ? newUser                     : a.assignedTo,
-          department:   newDept  === '__clear__'  ? ''      : newDept  !== '' ? newDept  : a.dept,
-          status:       newStatus !== ''           ? newStatus                  : a.status,
-          purchase_date: a.purchaseDate,
-          end_of_life:   a.endOfLife,
-          cost:          a.cost,
-          notes:         a.notes,
-          eol_override:  a.eolOverride ? 1 : 0,
-        })
-      });
+      await apiFetch(API + "?archive=1", { method: "PUT", body: JSON.stringify({ id }) });
       done++;
     } catch { failed++; }
   }
-
-  btn.disabled = false;
-  btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Apply to Selected`;
-  closeModal('reassign-modal');
+  toast(`Archived ${done} asset${done>1?"s":""}${failed ? " ("+failed+" failed)" : ""}`, done ? "success" : "error");
   cancelBatchMode();
   loadAssets();
   loadDashboard();
-  if (document.getElementById('page-users').classList.contains('active')) loadUsers();
-  toast(`Reassigned ${done} asset${done!==1?'s':''}${failed?` (${failed} failed)`:''}`, done ? 'success' : 'error');
 }
 
 async function batchEstimate() {
@@ -3383,37 +3283,10 @@ function openAddModal(){
   document.getElementById('f-eol').value='';
   document.getElementById('f-cost').value='';
   document.getElementById('f-eol-override').checked = false;
+  document.getElementById('serial-dupe-warn').style.display = 'none';
   document.getElementById('save-btn').textContent='Save Asset';
   document.getElementById('asset-modal').classList.add('open');
   setTimeout(()=>document.getElementById('f-name').focus(),300);
-}
-
-async function copyAsset(id) {
-  const a = await apiFetch(API + '?id=' + encodeURIComponent(id));
-  editingId = null; // new asset — not editing
-  document.getElementById('modal-title').innerHTML =
-    `Copy Asset <span style="font-size:13px;font-weight:500;color:var(--muted);margin-left:6px">from ${esc(a.id)}</span>`;
-  document.getElementById('f-name').value     = a.name ? 'Copy of ' + a.name : '';
-  document.getElementById('f-type').value     = a.type || 'Laptop';
-  document.getElementById('f-serial').value   = ''; // serial must be unique — clear it
-  document.getElementById('f-assigned').value = a.assignedTo || '';
-  document.getElementById('f-dept').value     = a.dept || '';
-  document.getElementById('f-status').value   = a.status || 'active';
-  document.getElementById('f-date').value     = a.purchaseDate || '';
-  document.getElementById('f-eol').value      = a.endOfLife || '';
-  document.getElementById('f-cost').value     = a.cost || '';
-  document.getElementById('f-notes').value    = a.notes || '';
-  document.getElementById('f-eol-override').checked = false;
-  document.getElementById('ai-price-result').style.display = 'none';
-  loadCustomFieldsForModal(a.type, null); // load field defs but no values
-  document.getElementById('save-btn').textContent = 'Save Copy';
-  document.getElementById('asset-modal').classList.add('open');
-  // Focus the name field so user can adjust "Copy of …" right away
-  setTimeout(() => {
-    const nameEl = document.getElementById('f-name');
-    nameEl.focus();
-    nameEl.select();
-  }, 300);
 }
 
 async function editAsset(id){
@@ -3436,9 +3309,38 @@ async function editAsset(id){
   document.getElementById('asset-modal').classList.add('open');
 }
 
+let serialCheckTimer = null;
+async function checkSerialDuplicate(val) {
+  const warn = document.getElementById('serial-dupe-warn');
+  const msg  = document.getElementById('serial-dupe-msg');
+  if (!warn || !msg) return;
+  val = val.trim();
+  if (!val) { warn.style.display = 'none'; return; }
+  clearTimeout(serialCheckTimer);
+  serialCheckTimer = setTimeout(async () => {
+    try {
+      const results = await apiFetch(API + '?q=' + encodeURIComponent(val) + '&show_retired=1');
+      const match = results.find(a => a.serial && a.serial.toLowerCase() === val.toLowerCase() && a.id !== editingId);
+      if (match) {
+        msg.textContent = 'Serial already used by ' + match.name + ' (' + match.id + (match.archived ? ' — archived' : '') + ')';
+        warn.style.display = 'flex';
+      } else {
+        warn.style.display = 'none';
+      }
+    } catch { warn.style.display = 'none'; }
+  }, 400);
+}
+
 async function saveAsset(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){toast('Please enter an asset name.','error');return;}
+  // Block save if a confirmed duplicate serial is showing
+  const dupeWarn = document.getElementById('serial-dupe-warn');
+  if (dupeWarn && dupeWarn.style.display === 'flex') {
+    toast('Serial number already exists on another asset.', 'error');
+    document.getElementById('f-serial').focus();
+    return;
+  }
   const btn=document.getElementById('save-btn');
   btn.disabled=true; btn.textContent='Saving…';
   const payload={id:editingId,name,
