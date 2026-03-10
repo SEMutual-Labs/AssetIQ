@@ -2071,6 +2071,7 @@ async function loadAssets() {
       <td><div class="tbl-actions">
         <button class="tbl-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">QR</button>
         <button class="tbl-btn" onclick="editAsset('${esc(a.id)}')">Edit</button>
+        <button class="tbl-btn" onclick="copyAsset('${esc(a.id)}')">Copy</button>
         <button class="tbl-btn danger" onclick="deleteAsset('${esc(a.id)}')">Del</button>
       </div></td>
     </tr>`).join('');
@@ -2130,6 +2131,10 @@ function assetCard(a) {
       </button>
       <div class="card-more-menu" id="card-menu-${esc(a.id)}">
         ${eolMenuHtml(a.id, a.eolOverride, isEolActive)}
+        <div class="card-menu-item" onclick="copyAsset('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Asset
+        </div>
         <div class="card-menu-item" onclick="showAssetLog('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           View History
@@ -3377,6 +3382,34 @@ function openAddModal(){
   document.getElementById('save-btn').textContent='Save Asset';
   document.getElementById('asset-modal').classList.add('open');
   setTimeout(()=>document.getElementById('f-name').focus(),300);
+}
+
+async function copyAsset(id) {
+  const a = await apiFetch(API + '?id=' + encodeURIComponent(id));
+  editingId = null; // new asset — not editing
+  document.getElementById('modal-title').innerHTML =
+    `Copy Asset <span style="font-size:13px;font-weight:500;color:var(--muted);margin-left:6px">from ${esc(a.id)}</span>`;
+  document.getElementById('f-name').value     = a.name ? 'Copy of ' + a.name : '';
+  document.getElementById('f-type').value     = a.type || 'Laptop';
+  document.getElementById('f-serial').value   = ''; // serial must be unique — clear it
+  document.getElementById('f-assigned').value = a.assignedTo || '';
+  document.getElementById('f-dept').value     = a.dept || '';
+  document.getElementById('f-status').value   = a.status || 'active';
+  document.getElementById('f-date').value     = a.purchaseDate || '';
+  document.getElementById('f-eol').value      = a.endOfLife || '';
+  document.getElementById('f-cost').value     = a.cost || '';
+  document.getElementById('f-notes').value    = a.notes || '';
+  document.getElementById('f-eol-override').checked = false;
+  document.getElementById('ai-price-result').style.display = 'none';
+  loadCustomFieldsForModal(a.type, null); // load field defs but no values
+  document.getElementById('save-btn').textContent = 'Save Copy';
+  document.getElementById('asset-modal').classList.add('open');
+  // Focus the name field so user can adjust "Copy of …" right away
+  setTimeout(() => {
+    const nameEl = document.getElementById('f-name');
+    nameEl.focus();
+    nameEl.select();
+  }, 300);
 }
 
 async function editAsset(id){
