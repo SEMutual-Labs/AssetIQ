@@ -2,15 +2,12 @@
 // AssetIQ REST API — with audit log + archive support
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
+send_cors_headers('GET, POST, PUT, DELETE, OPTIONS');
 
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
@@ -201,7 +198,8 @@ if ($method === 'POST') {
     $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
        ->execute(array_merge(['id'=>$id],$s));
     writeLog($db,$id,$s['name'],'created',[],$actor);
-    respond(rowToAsset($db->query("SELECT * FROM assets WHERE id='$id'")->fetch()),201);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$id]);
+    respond(rowToAsset($sel->fetch()),201);
 }
 
 // PUT — archive
@@ -211,7 +209,8 @@ if ($method === 'PUT' && isset($_GET['archive'])) {
     $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
     $db->prepare("UPDATE assets SET archived=1,archived_at=NOW() WHERE id=?")->execute([$d['id']]);
     writeLog($db,$d['id'],$row['name'],'archived',[],$actor);
-    respond(rowToAsset($db->query("SELECT * FROM assets WHERE id='{$d['id']}'")->fetch()));
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
 }
 
 // PUT — restore
@@ -221,7 +220,8 @@ if ($method === 'PUT' && isset($_GET['restore'])) {
     $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
     $db->prepare("UPDATE assets SET archived=0,archived_at=NULL WHERE id=?")->execute([$d['id']]);
     writeLog($db,$d['id'],$row['name'],'restored',[],$actor);
-    respond(rowToAsset($db->query("SELECT * FROM assets WHERE id='{$d['id']}'")->fetch()));
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
 }
 
 // PUT — update
@@ -233,7 +233,8 @@ if ($method === 'PUT') {
     $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
        ->execute(array_merge(['id'=>$d['id']],$s));
     if (!empty($diff)) writeLog($db,$d['id'],$s['name'],'updated',$diff,$actor);
-    respond(rowToAsset($db->query("SELECT * FROM assets WHERE id='{$d['id']}'")->fetch()));
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
 }
 
 // DELETE — hard delete

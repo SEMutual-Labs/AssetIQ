@@ -5,6 +5,27 @@
 
 require_once '/home/1280766.cloudwaysapps.com/awhfqygezp/private_html/config.php';
 
+function send_security_headers(): void {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('X-XSS-Protection: 1; mode=block');
+}
+
+function send_cors_headers(string $methods = 'GET, POST, OPTIONS'): void {
+    $allowedOrigin = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($allowedOrigin && $requestOrigin === $allowedOrigin) {
+        header("Access-Control-Allow-Origin: $allowedOrigin");
+        header('Vary: Origin');
+    } elseif (!$allowedOrigin) {
+        // APP_URL not configured — fall back to same-origin only (no CORS header)
+        header('Vary: Origin');
+    }
+    header("Access-Control-Allow-Methods: $methods");
+    header('Access-Control-Allow-Headers: Content-Type');
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_samesite', 'Lax');
     ini_set('session.cookie_secure', '1');
@@ -12,6 +33,7 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.gc_maxlifetime', 86400);
     session_name('assetiq_sess');
     session_start();
+    send_security_headers();
 }
 
 function auth_user(): ?array {
