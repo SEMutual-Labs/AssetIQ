@@ -7,6 +7,8 @@
 // ─────────────────────────────────────────────────────────────
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth/auth.php';
+auth_require();
 
 $run    = isset($_GET['run']) && $_GET['run'] === '1';
 $dryRun = !$run;

@@ -23,6 +23,9 @@ try {
     $tokens = auth_exchange_code($code);
     $msUser = auth_get_user_info($tokens['access_token']);
 
+    // Regenerate session ID on privilege escalation to prevent session fixation
+    session_regenerate_id(true);
+
     $_SESSION['auth_user'] = [
         'id'        => $msUser['id'],
         'name'      => $msUser['displayName']      ?? 'Unknown',

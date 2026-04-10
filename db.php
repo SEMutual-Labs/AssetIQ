@@ -12,8 +12,9 @@ function getDB(): PDO {
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
     } catch (PDOException $e) {
+        error_log('AssetIQ DB connection failed: ' . $e->getMessage());
         http_response_code(500);
-        die(json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]));
+        die(json_encode(['error' => 'Database connection failed']));
     }
     return $pdo;
 }
