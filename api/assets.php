@@ -37,6 +37,11 @@ function respond(mixed $data, int $code = 200): void {
 function bodyJson(): array {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
+function sanitizeDate(?string $val): ?string {
+    if (empty($val)) return null;
+    $d = DateTimeImmutable::createFromFormat('Y-m-d', trim($val));
+    return ($d && $d->format('Y-m-d') === trim($val)) ? trim($val) : null;
+}
 function sanitizeAsset(array $d): array {
     $validStatuses = ['active','retired'];
     return [
@@ -46,8 +51,8 @@ function sanitizeAsset(array $d): array {
         'assigned_to'   => trim($d['assigned_to'] ?? ''),
         'department'    => trim($d['department'] ?? ''),
         'status'        => in_array($d['status'] ?? '', $validStatuses) ? $d['status'] : 'active',
-        'purchase_date' => !empty($d['purchase_date']) ? $d['purchase_date'] : null,
-        'end_of_life'   => !empty($d['end_of_life'])   ? $d['end_of_life']   : null,
+        'purchase_date' => sanitizeDate($d['purchase_date'] ?? null),
+        'end_of_life'   => sanitizeDate($d['end_of_life']   ?? null),
         'cost'          => isset($d['cost']) && $d['cost'] !== '' ? (float)$d['cost'] : null,
         'notes'         => trim($d['notes'] ?? ''),
         'eol_override'  => isset($d['eol_override']) ? (int)(bool)$d['eol_override'] : 0,
