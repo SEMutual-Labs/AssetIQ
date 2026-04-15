@@ -5,14 +5,12 @@
 // GET  api/settings.php?alerts → low-stock alert status
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
+send_cors_headers('GET, POST, OPTIONS');
 
 $db = getDB();
 
@@ -106,6 +104,13 @@ if ($method === 'GET') {
     respond($out);
 }
 
+// Allowed setting keys — reject anything not in this list
+const ALLOWED_SETTING_KEYS = [
+    'threshold_laptop', 'threshold_desktop', 'threshold_monitor',
+    'threshold_docking_station', 'threshold_printer', 'threshold_camera',
+    'threshold_other', 'alerts_enabled', 'depreciation_years',
+];
+
 // POST — upsert one or many settings
 if ($method === 'POST') {
     $raw = file_get_contents('php://input');
@@ -118,7 +123,7 @@ if ($method === 'POST') {
     }
     $stmt = $db->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`), updated_at=NOW()");
     foreach ($d as $k => $v) {
-        if (strlen($k) <= 64) $stmt->execute([$k, (string)$v]);
+        if (in_array($k, ALLOWED_SETTING_KEYS, true)) $stmt->execute([$k, (string)$v]);
     }
     respond(['saved' => true]);
 }

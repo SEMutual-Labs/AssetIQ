@@ -31,6 +31,15 @@ function adpCategory(string $type): string {
     };
 }
 
+// Prevent CSV formula injection (cells starting with =, +, -, @ are prefixed with a tab)
+function csvSafe(?string $val): string {
+    $s = (string)($val ?? '');
+    if ($s !== '' && in_array($s[0], ['=', '+', '-', '@', "\t", "\r"])) {
+        $s = "\t" . $s;
+    }
+    return $s;
+}
+
 $headers = [
     'Position ID','Asset Name',
     'Cell Phone Details','Cell Phone Status','Cell Phone Plan Expiry','Cell Phone Date Given','Cell Phone Date Returned',
@@ -67,17 +76,17 @@ foreach ($byUser as $user => $assets) {
 
         fputcsv($out, [
             '',  // Position ID — blank for manual fill
-            $i === 0 ? $user : '',
+            $i === 0 ? csvSafe($user) : '',
             '','','','','',
-            $comp  ? $comp['name']   : '',
+            $comp  ? csvSafe($comp['name'])            : '',
             '',
-            $comp  ? ($comp['serial'] ?? '') : '',
-            $comp  ? ($comp['purchase_date'] ?? '') : '',
+            $comp  ? csvSafe($comp['serial'] ?? '')    : '',
+            $comp  ? ($comp['purchase_date'] ?? '')    : '',
             '',
             '','','','','',
-            $equip ? $equip['name'] . ' (SN: ' . ($equip['serial'] ?? '') . ')' : '',
+            $equip ? csvSafe($equip['name'] . ' (SN: ' . ($equip['serial'] ?? '') . ')') : '',
             '',
-            $equip ? ($equip['purchase_date'] ?? '') : '',
+            $equip ? ($equip['purchase_date'] ?? '')   : '',
             '',
             '','','','',
             '','','','','',
