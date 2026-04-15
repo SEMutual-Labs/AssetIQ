@@ -1319,7 +1319,7 @@ input[type="checkbox"] {
     </button>
     <div style="display:flex;align-items:center;gap:8px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border)">
       <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,rgba(0,229,255,0.2),rgba(167,139,250,0.2));border:1px solid rgba(0,229,255,0.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent)">
-        <?= strtoupper(substr($user['name'], 0, 1)) ?>
+        <?= htmlspecialchars(strtoupper(substr($user['name'], 0, 1))) ?>
       </div>
       <div style="display:flex;flex-direction:column;line-height:1.2">
         <span style="font-size:12px;font-weight:600"><?= htmlspecialchars(explode(' ', $user['name'])[0]) ?></span>
@@ -1399,7 +1399,7 @@ input[type="checkbox"] {
   </div>
 
   <div class="drawer-footer">
-    <div class="drawer-avatar"><?= strtoupper(substr($user['name'], 0, 1)) ?></div>
+    <div class="drawer-avatar"><?= htmlspecialchars(strtoupper(substr($user['name'], 0, 1))) ?></div>
     <div class="drawer-user-info">
       <div class="drawer-user-name"><?= htmlspecialchars(explode(' ', $user['name'])[0]) ?></div>
       <div class="drawer-user-sub"><?= htmlspecialchars($user['dept'] ?: $user['title'] ?: $user['email']) ?></div>
@@ -3544,7 +3544,7 @@ function eolFlag(eolDate, override=false) {
   return `<span class="flag-warning">🟡 Due This Year</span>`;
 }
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function typeBadge(t){return `<span class="badge ${T[t]||'badge-laptop'}">${esc(t)}</span>`;}
 function statusBadge(assignedTo, status) {
   if (status === 'retired') return '<span class="badge badge-retired">Retired</span>';
