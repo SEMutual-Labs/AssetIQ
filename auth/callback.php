@@ -38,7 +38,7 @@ try {
 
     $redirect = $_SESSION['auth_redirect'] ?? '/';
     unset($_SESSION['auth_redirect']);
-    if (!preg_match('/^\//', $redirect)) $redirect = '/';
+    if (!preg_match('/^\/(?!\/)/', $redirect)) $redirect = '/';
 
     header("Location: $redirect");
     exit;
