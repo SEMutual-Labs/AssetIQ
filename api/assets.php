@@ -169,7 +169,7 @@ if ($method === 'GET') {
         if (empty($_GET['show_retired'])) $where[]="COALESCE(status,'active')!='retired'";
     }
     $order = 'created_at DESC';
-    $allowed = ['id','name','type','serial','assigned_to','purchase_date','cost'];
+    $allowed = ['id','name','type','serial','assigned_to','purchase_date','end_of_life','cost'];
     if (!empty($_GET['sort']) && in_array($_GET['sort'],$allowed)) {
         $order = $_GET['sort'].' '.(($_GET['dir']??'asc')==='desc'?'DESC':'ASC');
     }

@@ -1483,10 +1483,6 @@ input[type="checkbox"] {
       </select>
       <select id="filter-dept">
         <option value="">All Departments</option>
-        <option>IT</option><option>Finance</option>
-        <option>Claims</option><option>Management</option><option>Marketing</option>
-        <option>Underwriting</option><option>Agent</option>
-        <option>No Longer At SEM</option>
       </select>
       <select id="filter-status">
         <option value="">All Status</option>
@@ -1560,7 +1556,7 @@ input[type="checkbox"] {
         <th onclick="sortBy('cost')">Cost ↕</th>
         <th>Actions</th>
       </tr></thead>
-      <tbody id="assets-tbody"><tr><td colspan="8"><div class="spinner"></div></td></tr></tbody>
+      <tbody id="assets-tbody"><tr><td colspan="9"><div class="spinner"></div></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1621,11 +1617,9 @@ input[type="checkbox"] {
             <label class="form-label">Department</label>
             <select id="f-dept">
               <option value="">— Unassigned —</option>
-              <option>IT</option><option>Finance</option>
-              <option>Claims</option><option>Management</option><option>Marketing</option>
-              <option>Underwriting</option><option>Agent</option>
-              <option>No Longer At SEM</option>
             </select>
+          </div>
+          <div class="form-group">
             <label class="form-label">Status</label>
             <select id="f-status">
               <option value="active">Active</option>
@@ -1799,6 +1793,7 @@ const SETTINGS_API = 'api/settings.php';
 const LINKS_API    = 'api/links.php';
 const FIELDS_API   = 'api/fields.php';
 const T={Laptop:'badge-laptop',Desktop:'badge-desktop',Monitor:'badge-monitor',Peripheral:'badge-peripheral','Docking Station':'badge-docking',Printer:'badge-printer',Camera:'badge-camera'};
+const DEPARTMENTS=['IT','Finance','Claims','Management','Marketing','Underwriting','Agent','No Longer At SEM'];
 let editingId=null, sortKey='id', sortAsc=true;
 let scannerActive=false, html5QrCode=null, searchTimer=null;
 
@@ -1992,14 +1987,14 @@ async function loadAssets() {
   if(q)p.set('q',q); if(ft)p.set('type',ft); if(fs)p.set('status',fs); if(fd)p.set('dept',fd);
   p.set('sort',sortKey); p.set('dir',sortAsc?'asc':'desc');
   document.getElementById('assets-list').innerHTML='<div class="spinner"></div>';
-  document.getElementById('assets-tbody').innerHTML=`<tr><td colspan="8"><div class="spinner"></div></td></tr>`;
+  document.getElementById('assets-tbody').innerHTML=`<tr><td colspan="9"><div class="spinner"></div></td></tr>`;
   document.getElementById('asset-empty').style.display='none';
   let assets;
   try {
     assets = await apiFetch(API+'?'+p.toString());
   } catch(e) {
     document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
-    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
+    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
     return;
   }
   if(!assets.length){
@@ -2037,8 +2032,7 @@ function eolMenuHtml(id, eolOverride, isEolActive) {
     ? '<path d="M18 6 6 18M6 6l12 12"/>'
     : '<polyline points="20 6 9 17 4 12"/>';
   const label = eolOverride ? 'Remove EOL Override' : 'Acknowledge EOL';
-  const safeId = id.replace(/'/g, "\'");
-  return `<div class="card-menu-item ${cls}" onclick="toggleEolOverride('${safeId}');closeCardMenu('${safeId}')">` +
+  return `<div class="card-menu-item ${cls}" onclick="toggleEolOverride('${esc(id)}');closeCardMenu('${esc(id)}')">` +
     `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icon}</svg>${label}</div>`;
 }
 
@@ -3263,6 +3257,13 @@ async function deleteCustomField(id) {
 function sortBy(k){if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}loadAssets();}
 
 document.addEventListener('DOMContentLoaded',()=>{
+  // Populate department selects from the single DEPARTMENTS constant
+  const deptOptionHtml = DEPARTMENTS.map(d=>`<option>${esc(d)}</option>`).join('');
+  const filterDept = document.getElementById('filter-dept');
+  if (filterDept) filterDept.insertAdjacentHTML('beforeend', deptOptionHtml);
+  const formDept = document.getElementById('f-dept');
+  if (formDept) formDept.insertAdjacentHTML('beforeend', deptOptionHtml);
+
   document.getElementById('search-input')?.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(loadAssets,300);});
   document.getElementById('filter-type')?.addEventListener('change',loadAssets);
   document.getElementById('filter-dept')?.addEventListener('change',loadAssets);
