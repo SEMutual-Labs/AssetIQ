@@ -14,25 +14,6 @@ send_cors_headers('GET, POST, OPTIONS');
 
 $db = getDB();
 
-// Ensure settings table exists
-$db->exec("CREATE TABLE IF NOT EXISTS settings (
-    `key`   VARCHAR(64) PRIMARY KEY,
-    `value` TEXT NOT NULL DEFAULT '',
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-// Ensure asset_links table exists (create here so any API call bootstraps it)
-$db->exec("CREATE TABLE IF NOT EXISTS asset_links (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    asset_id_a VARCHAR(32) NOT NULL,
-    asset_id_b VARCHAR(32) NOT NULL,
-    note       VARCHAR(255) NOT NULL DEFAULT '',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_link (asset_id_a, asset_id_b),
-    INDEX idx_a (asset_id_a),
-    INDEX idx_b (asset_id_b)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
 }

@@ -138,13 +138,23 @@ function mapDeviceType(string $os, string $model = ''): string {
     return 'Laptop';
 }
 
-// ── Next asset ID ─────────────────────────────────────────────
-function nextId(PDO $db): string {
-    $row = $db->query("SELECT id FROM assets ORDER BY created_at DESC, id DESC LIMIT 1")->fetch();
-    if (!$row) return 'AST-0001';
-    preg_match('/AST-(\d+)/', $row['id'], $m);
-    $n = isset($m[1]) ? (int)$m[1] + 1 : 1;
-    return 'AST-' . str_pad($n, 4, '0', STR_PAD_LEFT);
+// ── Next asset ID (matches prefix scheme in api/assets.php) ───
+function nextId(PDO $db, string $type = ''): string {
+    $prefix = match(strtolower($type)) {
+        'laptop'          => 'SEM-NB',
+        'desktop'         => 'SEM-PC',
+        'monitor'         => 'SEM-M',
+        'docking station' => 'SEM-D',
+        'printer'         => 'SEM-PR',
+        'camera'          => 'SEM-CAM',
+        default           => 'SEM-P',
+    };
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id LIKE ? ORDER BY id DESC");
+    $stmt->execute([$prefix . '%']);
+    $max = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
+        if (preg_match('/-(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
+    return $prefix . str_pad($max + 1, 2, '0', STR_PAD_LEFT);
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -249,7 +259,7 @@ if ($action === 'import') {
                 if ($check->fetch()) { $skipped++; continue; }
             }
 
-            $id          = nextId($db);
+            $id          = nextId($db, $d['type'] ?? 'Laptop');
             $name        = trim($d['model'] ?: $d['deviceName'] ?: 'Unknown Device');
             $assignedTo  = trim($d['assignedTo'] ?? '');
             $dept        = '';

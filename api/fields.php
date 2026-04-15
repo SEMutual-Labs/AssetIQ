@@ -17,24 +17,6 @@ send_cors_headers('GET, POST, DELETE, OPTIONS');
 
 $db = getDB();
 
-$db->exec("CREATE TABLE IF NOT EXISTS custom_field_defs (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    asset_type VARCHAR(64) NOT NULL,
-    label      VARCHAR(128) NOT NULL,
-    field_key  VARCHAR(64) NOT NULL,
-    field_type VARCHAR(16) NOT NULL DEFAULT 'date',
-    sort_order INT NOT NULL DEFAULT 0,
-    UNIQUE KEY uq_key (asset_type, field_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-$db->exec("CREATE TABLE IF NOT EXISTS custom_field_values (
-    asset_id  VARCHAR(32) NOT NULL,
-    field_key VARCHAR(64) NOT NULL,
-    value     VARCHAR(255) NOT NULL DEFAULT '',
-    PRIMARY KEY (asset_id, field_key),
-    INDEX idx_asset (asset_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
 }

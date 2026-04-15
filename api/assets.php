@@ -14,22 +14,6 @@ $db     = getDB();
 $user   = auth_user();
 $actor  = $user['name'] ?? $user['email'] ?? 'Unknown';
 
-// Ensure schema columns/tables exist
-$db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS eol_override TINYINT(1) NOT NULL DEFAULT 0");
-$db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived TINYINT(1) NOT NULL DEFAULT 0");
-$db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL");
-$db->exec("CREATE TABLE IF NOT EXISTS asset_logs (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    asset_id     VARCHAR(32) NOT NULL,
-    asset_name   VARCHAR(255) NOT NULL DEFAULT '',
-    action       VARCHAR(32) NOT NULL,
-    changed_fields JSON NULL,
-    performed_by VARCHAR(255) NOT NULL DEFAULT '',
-    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_asset_id (asset_id),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
 // Helpers
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
@@ -106,8 +90,6 @@ if ($method === 'GET' && isset($_GET['logs'])) {
     $offset = (int)($_GET['offset'] ?? 0);
     $rows = $db->prepare("SELECT * FROM asset_logs WHERE ".implode(' AND ',$where)." ORDER BY created_at DESC LIMIT $limit OFFSET $offset");
     $rows->execute($params); $rows = $rows->fetchAll();
-    $total = (int)$db->prepare("SELECT COUNT(*) FROM asset_logs WHERE ".implode(' AND ',$where))->execute($params) ? 0 : 0;
-    // simpler count:
     $cstmt = $db->prepare("SELECT COUNT(*) FROM asset_logs WHERE ".implode(' AND ',$where));
     $cstmt->execute($params); $total = (int)$cstmt->fetchColumn();
     respond(['logs' => array_map(fn($r)=>[

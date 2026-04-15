@@ -13,16 +13,6 @@ auth_require_json();
 send_cors_headers('GET, POST, DELETE, OPTIONS');
 
 $db = getDB();
-$db->exec("CREATE TABLE IF NOT EXISTS asset_links (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    asset_id_a VARCHAR(32) NOT NULL,
-    asset_id_b VARCHAR(32) NOT NULL,
-    note       VARCHAR(255) NOT NULL DEFAULT '',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_link (asset_id_a, asset_id_b),
-    INDEX idx_a (asset_id_a),
-    INDEX idx_b (asset_id_b)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
