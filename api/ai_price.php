@@ -42,7 +42,7 @@ $prompt = "You are an IT asset valuation assistant. Estimate the current fair ma
 
 $payload = json_encode([
     'model'      => 'claude-haiku-4-5-20251001',
-    'max_tokens' => 400,
+    'max_tokens' => 600,
     'messages'   => [
         ['role' => 'user', 'content' => $prompt]
     ]
@@ -82,8 +82,8 @@ if ($httpCode !== 200) {
 }
 
 $text  = $data['content'][0]['text'] ?? '';
-$clean = preg_replace('/```json|```/', '', $text);
-$est   = json_decode(trim($clean), true);
+preg_match('/\{.*\}/s', $text, $jsonMatch);
+$est   = $jsonMatch ? json_decode($jsonMatch[0], true) : null;
 
 if (!$est || !isset($est['low'])) {
     http_response_code(502);
