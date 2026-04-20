@@ -18,9 +18,6 @@ require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
 send_cors_headers('POST, OPTIONS');
 
-// ── Config ────────────────────────────────────────────────────
-require_once __DIR__ . '/../config.php';
-
 // Intune / Microsoft Graph credentials
 // Add these to your config.php:
 //   define('INTUNE_TENANT_ID',     'your-tenant-id');
