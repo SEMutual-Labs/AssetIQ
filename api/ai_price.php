@@ -11,8 +11,6 @@ require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
 send_cors_headers('POST, OPTIONS');
 
-require_once __DIR__ . '/../config.php';
-
 if (!defined('ANTHROPIC_API_KEY') || !ANTHROPIC_API_KEY) {
     http_response_code(500);
     echo json_encode(['error' => 'Anthropic API key not configured. Add ANTHROPIC_API_KEY to config.php.']);
