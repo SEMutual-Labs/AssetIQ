@@ -1603,7 +1603,15 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Serial Number</label>
-            <input type="text" id="f-serial" placeholder="SN-XXXX" autocomplete="off" oninput="checkSerialDuplicate(this.value)">
+            <div style="display:flex;gap:6px">
+              <input type="text" id="f-serial" placeholder="SN-XXXX" autocomplete="off" oninput="checkSerialDuplicate(this.value)" style="flex:1;min-width:0">
+              <button type="button" id="serial-scan-btn" onclick="toggleSerialScanner()" title="Scan barcode" style="flex-shrink:0;width:38px;height:38px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--fg2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.15s,border-color 0.15s,background 0.15s">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9V5a2 2 0 0 1 2-2h2M19 3h2a2 2 0 0 1 2 2v4M21 15v4a2 2 0 0 1-2 2h-2M5 21H3v-4"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13" y1="8" x2="13" y2="16"/><line x1="16" y1="8" x2="16" y2="16"/></svg>
+              </button>
+            </div>
+            <div id="serial-scanner-wrap" style="display:none;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid var(--border2)">
+              <div id="serial-scanner"></div>
+            </div>
             <div id="serial-dupe-warn" style="display:none;margin-top:5px;padding:7px 10px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:7px;font-size:12px;font-weight:600;color:var(--amber);align-items:center;gap:7px">
               <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span id="serial-dupe-msg"></span>
@@ -3374,8 +3382,8 @@ async function deleteAsset(id){
   if (document.getElementById('page-users').classList.contains('active')) loadUsers();
 }
 
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='asset-modal')stopSerialScanner();}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id);}));
 
 function showQR(id,name,serial){
   document.getElementById('qr-canvas-wrap').innerHTML='<div id="qr-gen"></div>';
@@ -3465,6 +3473,50 @@ async function onScanSuccess(decoded){
 }
 function sf(label,val,mono=false){
   return `<div class="scan-field"><label>${label}</label><span style="${mono?'font-family:JetBrains Mono,monospace;font-size:12px':''}">${esc(String(val))}</span></div>`;
+}
+
+let serialScanner=null, serialScannerActive=false;
+function toggleSerialScanner(){serialScannerActive?stopSerialScanner():startSerialScanner();}
+function startSerialScanner(){
+  loadHtml5QrCode(()=>{
+    const wrap=document.getElementById('serial-scanner-wrap');
+    const btn=document.getElementById('serial-scan-btn');
+    if(!wrap||!btn)return;
+    wrap.style.display='block';
+    document.getElementById('serial-scanner').innerHTML='';
+    const formats=[
+      Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.CODE_93,  Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.EAN_13,   Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,    Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.ITF,      Html5QrcodeSupportedFormats.PDF_417,
+      Html5QrcodeSupportedFormats.QR_CODE,
+    ];
+    serialScanner=new Html5Qrcode('serial-scanner',{formatsToSupport:formats});
+    serialScanner.start(
+      {facingMode:'environment'},
+      {fps:10, qrbox:{width:260,height:100}},
+      (decoded)=>{
+        document.getElementById('f-serial').value=decoded;
+        checkSerialDuplicate(decoded);
+        stopSerialScanner();
+      },
+      ()=>{}
+    ).then(()=>{
+      serialScannerActive=true;
+      btn.style.cssText+='border-color:rgba(0,229,255,0.5);color:var(--accent);background:rgba(0,229,255,0.08)';
+    }).catch(err=>{
+      wrap.innerHTML=`<div style="color:var(--red);padding:16px;font-size:13px;text-align:center">Camera error: ${err}<br><small style="color:var(--muted)">Requires HTTPS and camera permission.</small></div>`;
+    });
+  });
+}
+function stopSerialScanner(){
+  serialScanner?.stop().catch(()=>{});
+  serialScanner=null; serialScannerActive=false;
+  const wrap=document.getElementById('serial-scanner-wrap');
+  const btn=document.getElementById('serial-scan-btn');
+  if(wrap)wrap.style.display='none';
+  if(btn){btn.style.borderColor='';btn.style.color='';btn.style.background='';}
 }
 
 async function exportCSV(){
