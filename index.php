@@ -730,7 +730,7 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
 }
 .desktop-nav .nav-btn.active::after { display: none; }
 
-.desktop-add-btn { display: none !important; }
+.desktop-add-btn { display: none; }
 
 /* ── EOL FLAGS ── */
 .flag-critical {
