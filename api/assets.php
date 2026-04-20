@@ -52,7 +52,7 @@ function nextId(PDO $db, string $type = ''): string {
     $stmt->execute([$prefix.'%']);
     $max = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
-        if (preg_match('/-(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
+        if (preg_match('/(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
     return $prefix . str_pad($max + 1, 2, '0', STR_PAD_LEFT);
 }
 function rowToAsset(array $r): array {
