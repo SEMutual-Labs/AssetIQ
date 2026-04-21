@@ -90,6 +90,7 @@ const ALLOWED_SETTING_KEYS = [
     'threshold_laptop', 'threshold_desktop', 'threshold_monitor',
     'threshold_docking_station', 'threshold_printer', 'threshold_camera',
     'threshold_other', 'alerts_enabled', 'depreciation_years',
+    'anthropic_api_key',
 ];
 
 // POST — upsert one or many settings

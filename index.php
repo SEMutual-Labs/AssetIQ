@@ -1593,6 +1593,10 @@ input[type="checkbox"] {
         </div>
         <div class="form-2col">
           <div class="form-group">
+            <label class="form-label">Asset Number <span id="f-asset-num-hint" style="color:var(--muted);font-weight:400;font-size:9px">(leave blank to auto-generate)</span></label>
+            <input type="text" id="f-asset-num" placeholder="e.g. SEM-NB01" autocomplete="off" maxlength="20" style="font-family:'JetBrains Mono',monospace;font-size:13px">
+          </div>
+          <div class="form-group">
             <label class="form-label">Type</label>
             <select id="f-type" onchange="loadCustomFieldsForModal(this.value, editingId)">
               <option>Laptop</option><option>Desktop</option>
@@ -2583,6 +2587,9 @@ async function loadSettings() {
     // Depreciation years
     const dy = document.getElementById('setting-depr-years');
     if (dy) dy.value = s['depreciation_years'] || '5';
+    // Anthropic API key
+    const ak = document.getElementById('setting-anthropic-key');
+    if (ak) ak.placeholder = s['anthropic_api_key'] ? 'sk-ant-… (configured — paste to replace)' : 'sk-ant-…';
     // Threshold fields
     const wrap = document.getElementById('threshold-fields');
     if (wrap) {
@@ -2625,6 +2632,18 @@ async function saveDeprYears() {
     await apiFetch(SETTINGS_API, { method:'POST', body: JSON.stringify({ depreciation_years: val }) });
     toast('Depreciation period saved', 'success');
   } catch(e) {}
+}
+
+async function saveApiKey() {
+  const val = document.getElementById('setting-anthropic-key').value.trim();
+  try {
+    await apiFetch(SETTINGS_API, { method:'POST', body: JSON.stringify({ anthropic_api_key: val }) });
+    document.getElementById('setting-anthropic-key').value = '';
+    document.getElementById('setting-anthropic-key').placeholder = val
+      ? 'sk-ant-… (configured — paste to replace)'
+      : 'sk-ant-…';
+    toast(val ? 'API key saved' : 'API key cleared', 'success');
+  } catch(e) { toast('Failed to save API key', 'error'); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3281,7 +3300,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 function openAddModal(){
   editingId=null;
   document.getElementById('modal-title').textContent='Add Asset';
-  ['f-name','f-serial','f-assigned','f-notes'].forEach(id=>document.getElementById(id).value='');
+  ['f-name','f-serial','f-assigned','f-notes','f-asset-num'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-asset-num-hint').style.display='';
   document.getElementById('f-type').value='Laptop';
   document.getElementById('f-dept').value='';
   document.getElementById('f-status').value='active';
@@ -3313,6 +3333,8 @@ async function editAsset(id){
   document.getElementById('f-cost').value=a.cost||'';
   document.getElementById('f-notes').value=a.notes||'';
   document.getElementById('f-eol-override').checked=!!a.eolOverride;
+  document.getElementById('f-asset-num').value=a.id||'';
+  document.getElementById('f-asset-num-hint').style.display='none';
   loadCustomFieldsForModal(a.type, a.id);
   document.getElementById('save-btn').textContent='Update Asset';
   document.getElementById('asset-modal').classList.add('open');
@@ -3343,13 +3365,14 @@ async function checkSerialDuplicate(val) {
 async function saveAsset(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){toast('Please enter an asset name.','error');return;}
-  // Block save if a confirmed duplicate serial is showing
   const dupeWarn = document.getElementById('serial-dupe-warn');
   if (dupeWarn && dupeWarn.style.display === 'flex') {
     toast('Serial number already exists on another asset.', 'error');
     document.getElementById('f-serial').focus();
     return;
   }
+  const assetNum = document.getElementById('f-asset-num').value.trim();
+  if (editingId && !assetNum) { toast('Asset number cannot be empty.', 'error'); return; }
   const btn=document.getElementById('save-btn');
   btn.disabled=true; btn.textContent='Saving…';
   const payload={id:editingId,name,
@@ -3363,13 +3386,18 @@ async function saveAsset(){
     cost:document.getElementById('f-cost').value||null,
     notes:document.getElementById('f-notes').value.trim(),
     eol_override:document.getElementById('f-eol-override').checked};
+  if (!editingId && assetNum) payload.custom_id = assetNum;
+  if (editingId && assetNum && assetNum !== editingId) payload.new_id = assetNum;
   try{
     let savedId = editingId;
-    if(editingId){await apiFetch(API,{method:'PUT',body:JSON.stringify(payload)});toast('Asset updated!','success');}
+    if(editingId){
+      const updated=await apiFetch(API,{method:'PUT',body:JSON.stringify(payload)});
+      savedId=updated.id;
+      toast('Asset updated!','success');
+    }
     else{const created=await apiFetch(API,{method:'POST',body:JSON.stringify(payload)});savedId=created.id;toast('Asset added!','success');}
     await saveCustomFieldValues(savedId);
     closeModal('asset-modal'); loadAssets(); loadDashboard();
-    // Refresh users if on that page
     if (document.getElementById('page-users').classList.contains('active')) loadUsers();
   }finally{btn.disabled=false; btn.textContent=editingId?'Update Asset':'Save Asset';}
 }
@@ -4074,6 +4102,15 @@ _sObs.observe(document.body,{childList:true,subtree:true});
     <div id="cf-defs-list">
       <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
     </div>
+  </div>
+  <div class="settings-section">
+    <h2 class="settings-section-title">AI Integration</h2>
+    <p class="settings-section-sub">Anthropic API key for the AI price estimation feature</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+      <input type="password" id="setting-anthropic-key" placeholder="sk-ant-…" style="flex:1;font-family:'JetBrains Mono',monospace;font-size:13px">
+      <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:8px">Stored in the database. Takes effect immediately — no server restart needed.</p>
   </div>
   </div><!-- /settings-tab-general -->
 
