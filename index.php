@@ -3273,7 +3273,6 @@ function applyTemplate(idx) {
   if (!a) return;
   document.getElementById('f-name').value = a.name;
   document.getElementById('f-type').value = a.type;
-  document.getElementById('f-notes').value = a.notes || '';
   document.getElementById('name-suggestions').style.display = 'none';
   loadCustomFieldsForModal(a.type, null);
   autoFillAssetId();
