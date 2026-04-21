@@ -135,7 +135,7 @@ function mapDeviceType(string $os, string $model = ''): string {
     return 'Laptop';
 }
 
-// ── Next asset ID (matches prefix scheme in api/assets.php) ───
+// ── Next asset ID (mirrors logic in api/assets.php) ───────────
 function nextId(PDO $db, string $type = ''): string {
     $prefix = match(strtolower($type)) {
         'laptop'          => 'SEM-NB',
@@ -143,14 +143,15 @@ function nextId(PDO $db, string $type = ''): string {
         'monitor'         => 'SEM-M',
         'docking station' => 'SEM-D',
         'printer'         => 'SEM-PR',
-        'camera'          => 'SEM-CAM',
+        'camera'          => 'SEM-CAM-',
         default           => 'SEM-P',
     };
-    $stmt = $db->prepare("SELECT id FROM assets WHERE id LIKE ? ORDER BY id DESC");
-    $stmt->execute([$prefix . '%']);
+    $pattern = strtolower($type) === 'camera' ? '^SEM-CAM-?[0-9]' : '^' . $prefix . '[0-9]';
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ?");
+    $stmt->execute([$pattern]);
     $max = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
-        if (preg_match('/-(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
+        if (preg_match('/(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
     return $prefix . str_pad($max + 1, 2, '0', STR_PAD_LEFT);
 }
 

@@ -51,8 +51,12 @@ function nextId(PDO $db, string $type = ''): string {
         'docking station' => 'SEM-D', 'printer' => 'SEM-PR', 'camera' => 'SEM-CAM-',
         default => 'SEM-P',
     };
-    $stmt = $db->prepare("SELECT id FROM assets WHERE id LIKE ? ORDER BY id DESC");
-    $stmt->execute([$prefix.'%']);
+    // REGEXP ensures a digit immediately follows the prefix, preventing e.g.
+    // 'SEM-P' from matching printer IDs like 'SEM-PR01'.
+    // Camera also matches legacy 'SEM-CAM01' (no dash) so old assets count correctly.
+    $pattern = strtolower($type) === 'camera' ? '^SEM-CAM-?[0-9]' : '^' . $prefix . '[0-9]';
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ?");
+    $stmt->execute([$pattern]);
     $max = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
         if (preg_match('/(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
