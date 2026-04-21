@@ -8,12 +8,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/../auth/auth.php';
+require_once __DIR__ . '/../db.php';
 auth_require_json();
 send_cors_headers('POST, OPTIONS');
 
-if (!defined('ANTHROPIC_API_KEY') || !ANTHROPIC_API_KEY) {
+$apiKey = defined('ANTHROPIC_API_KEY') && ANTHROPIC_API_KEY ? ANTHROPIC_API_KEY : null;
+if (!$apiKey) {
+    $db = getDB();
+    $keyRow = $db->query("SELECT `value` FROM settings WHERE `key`='anthropic_api_key'")->fetch();
+    $apiKey = ($keyRow && !empty($keyRow['value'])) ? $keyRow['value'] : null;
+}
+if (!$apiKey) {
     http_response_code(500);
-    echo json_encode(['error' => 'Anthropic API key not configured. Add ANTHROPIC_API_KEY to config.php.']);
+    echo json_encode(['error' => 'Anthropic API key not configured. Add it in Settings → AI Integration or in config.php.']);
     exit;
 }
 
@@ -53,7 +60,7 @@ curl_setopt_array($ch, [
     CURLOPT_POSTFIELDS     => $payload,
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
-        'x-api-key: ' . ANTHROPIC_API_KEY,
+        'x-api-key: ' . $apiKey,
         'anthropic-version: 2023-06-01',
     ],
     CURLOPT_TIMEOUT        => 30,

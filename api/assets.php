@@ -42,6 +42,9 @@ function sanitizeAsset(array $d): array {
         'eol_override'  => isset($d['eol_override']) ? (int)(bool)$d['eol_override'] : 0,
     ];
 }
+function validateAssetId(string $id): bool {
+    return strlen($id) >= 1 && strlen($id) <= 20 && (bool)preg_match('/^[A-Za-z0-9\-_]+$/', $id);
+}
 function nextId(PDO $db, string $type = ''): string {
     $prefix = match(strtolower($type)) {
         'laptop' => 'SEM-NB', 'desktop' => 'SEM-PC', 'monitor' => 'SEM-M',
@@ -181,7 +184,15 @@ if ($method === 'GET') {
 // POST — create
 if ($method === 'POST') {
     $d = bodyJson(); if (empty($d['name'])) respond(['error'=>'name is required'],422);
-    $id = nextId($db, $d['type']??''); $s = sanitizeAsset($d);
+    if (!empty($d['custom_id'])) {
+        $id = trim($d['custom_id']);
+        if (!validateAssetId($id)) respond(['error'=>'Invalid asset number. Use letters, numbers, and hyphens only (max 20 chars).'],422);
+        $chkId = $db->prepare("SELECT id FROM assets WHERE id=?"); $chkId->execute([$id]);
+        if ($chkId->fetch()) respond(['error'=>'Asset number already exists.'],409);
+    } else {
+        $id = nextId($db, $d['type']??'');
+    }
+    $s = sanitizeAsset($d);
     $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
        ->execute(array_merge(['id'=>$id],$s));
     writeLog($db,$id,$s['name'],'created',[],$actor);
@@ -216,11 +227,27 @@ if ($method === 'PUT') {
     $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
     $chk = $db->prepare("SELECT * FROM assets WHERE id=?"); $chk->execute([$d['id']]);
     $old = $chk->fetch(); if (!$old) respond(['error'=>'Not found'],404);
+    $workingId = $d['id'];
+    if (!empty($d['new_id'])) {
+        $newId = trim($d['new_id']);
+        if ($newId !== $workingId) {
+            if (!validateAssetId($newId)) respond(['error'=>'Invalid asset number. Use letters, numbers, and hyphens only (max 20 chars).'],422);
+            $chkNew = $db->prepare("SELECT id FROM assets WHERE id=?"); $chkNew->execute([$newId]);
+            if ($chkNew->fetch()) respond(['error'=>'Asset number already in use.'],409);
+            $db->prepare("UPDATE assets SET id=? WHERE id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_logs SET asset_id=? WHERE asset_id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE custom_field_values SET asset_id=? WHERE asset_id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_links SET asset_id_a=? WHERE asset_id_a=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_links SET asset_id_b=? WHERE asset_id_b=?")->execute([$newId, $workingId]);
+            writeLog($db,$newId,$old['name'],'id_changed',['id'],$actor);
+            $workingId = $newId;
+        }
+    }
     $s = sanitizeAsset($d); $diff = diffFields($old,$s);
     $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
-       ->execute(array_merge(['id'=>$d['id']],$s));
-    if (!empty($diff)) writeLog($db,$d['id'],$s['name'],'updated',$diff,$actor);
-    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+       ->execute(array_merge(['id'=>$workingId],$s));
+    if (!empty($diff)) writeLog($db,$workingId,$s['name'],'updated',$diff,$actor);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$workingId]);
     respond(rowToAsset($sel->fetch()));
 }
 
