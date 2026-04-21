@@ -46,6 +46,10 @@ function installSchema(): void {
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived     TINYINT(1)  NOT NULL DEFAULT 0");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived_at  DATETIME    NULL");
 
+    // Convert any archived assets to retired status (archive feature removed)
+    $db->exec("UPDATE assets SET archived=0, archived_at=NULL, status='retired' WHERE COALESCE(archived,0)=1 AND COALESCE(status,'active')!='retired'");
+    $db->exec("UPDATE assets SET archived=0, archived_at=NULL WHERE COALESCE(archived,0)=1");
+
     // ── Audit log ─────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS asset_logs (
         id             INT AUTO_INCREMENT PRIMARY KEY,

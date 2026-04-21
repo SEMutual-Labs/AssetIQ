@@ -350,6 +350,14 @@ body::before {
   font-family: 'Outfit', sans-serif;
 }
 .card-menu-item:last-child { border-bottom: none; }
+.name-sugg-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; font-size: 13px; font-weight: 500; cursor: pointer;
+  border-bottom: 1px solid var(--border); color: var(--text2);
+  font-family: 'Outfit', sans-serif; transition: background 0.1s;
+}
+.name-sugg-item:last-child { border-bottom: none; }
+.name-sugg-item:hover { background: var(--surface3, rgba(255,255,255,0.05)); }
 .card-menu-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
 .card-menu-item.danger { color: var(--red); }
 .card-menu-item.danger:hover { background: rgba(255,59,92,0.06); }
@@ -1296,10 +1304,6 @@ input[type="checkbox"] {
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       <span class="nav-label">Assets</span>
     </button>
-    <button class="nav-btn" id="dnav-archive" onclick="showPage('archive')">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-      <span class="nav-label">Archive</span>
-    </button>
     <button class="nav-btn" id="dnav-activity" onclick="showPage('activity')">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <span class="nav-label">Activity</span>
@@ -1357,11 +1361,6 @@ input[type="checkbox"] {
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       Assets
     </div>
-    <div class="drawer-nav-item" id="nav-archive" onclick="showPage('archive');closeDrawer()">
-      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-      Archive
-    </div>
-
     <div class="drawer-section-label" style="margin-top:8px">Insights</div>
     <div class="drawer-nav-item" id="nav-reports" onclick="showPage('reports');closeDrawer()">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1434,7 +1433,6 @@ input[type="checkbox"] {
       <div class="page-title" style="margin-bottom:2px">Dashboard</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="page-sub" style="margin-bottom:0">IT Asset Overview</span>
-        <button id="archived-pill" onclick="showPage('archive')" style="font-size:11px;font-weight:700;color:var(--amber);background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.2);border-radius:20px;padding:2px 10px;cursor:pointer;font-family:'Outfit',sans-serif;transition:background 0.15s">0 archived</button>
       </div>
     </div>
     <!-- Date range filter — inline with header -->
@@ -1476,7 +1474,7 @@ input[type="checkbox"] {
     <div class="filter-row">
       <select id="filter-type">
         <option value="">All Types</option>
-        <option>Laptop</option><option>Desktop</option>
+        <option>Laptop</option>
         <option>Monitor</option><option>Peripheral</option>
         <option>Docking Station</option>
         <option>Printer</option><option>Camera</option>
@@ -1511,10 +1509,6 @@ input[type="checkbox"] {
   <div class="batch-bar" id="batch-bar">
     <div class="batch-count" id="batch-count">0 selected</div>
     <div class="batch-actions">
-      <button class="batch-btn batch-btn-archive" onclick="batchArchive()">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-        Archive
-      </button>
       <button class="batch-btn batch-btn-ai" onclick="batchEstimate()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         AI Estimate
@@ -1587,9 +1581,10 @@ input[type="checkbox"] {
     </div>
     <div class="modal-body">
       <div class="form-stack">
-        <div class="form-group full">
+        <div class="form-group full" style="position:relative">
           <label class="form-label">Asset Name / Model *</label>
-          <input type="text" id="f-name" placeholder="e.g. Dell XPS 15 9530" autocomplete="off">
+          <input type="text" id="f-name" placeholder="e.g. Dell XPS 15 9530" autocomplete="off" oninput="onNameInput(this.value)" onblur="setTimeout(()=>{const s=document.getElementById('name-suggestions');if(s)s.style.display='none'},150)">
+          <div id="name-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,0.25)"></div>
         </div>
         <div class="form-2col">
           <div class="form-group">
@@ -1598,8 +1593,8 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Type</label>
-            <select id="f-type" onchange="loadCustomFieldsForModal(this.value, editingId)">
-              <option>Laptop</option><option>Desktop</option>
+            <select id="f-type" onchange="loadCustomFieldsForModal(this.value, editingId);if(!editingId)autoFillAssetId()">
+              <option>Laptop</option>
               <option>Monitor</option><option>Peripheral</option>
               <option>Docking Station</option>
               <option>Printer</option><option>Camera</option>
@@ -1847,7 +1842,6 @@ function showPage(name) {
   if(name==='assets')    loadAssets();
   if(name==='intune') { showPage('settings'); setTimeout(()=>switchSettingsTab('intune'),50); return; }
   if(name==='users')     loadUsers();
-  if(name==='archive')   loadArchive();
   if(name==='activity')  loadActivity();
   if(name==='reports')   loadReports();
   if(name==='settings')  loadSettings();
@@ -1964,9 +1958,6 @@ async function loadDashboard() {
       <div class="stat-sub">${card.sub}</div>
     </div>`).join('');
   window.statCardActions = cards.map(card=>card.action||null);
-  // Update archived link pill
-  const arEl = document.getElementById('archived-pill');
-  if(arEl) arEl.textContent = (stats.archived||0) + ' archived';
 
   // EOL banner
   const expiringSoon = recent.filter(a => !a.eolOverride && eolStatus(a.endOfLife) !== null);
@@ -2092,10 +2083,6 @@ function assetCard(a) {
         <div class="card-menu-item" onclick="showAssetLog('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           View History
-        </div>
-        <div class="card-menu-item warn" onclick="archiveAsset('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-          Archive Asset
         </div>
       </div>
     </div>
@@ -2299,96 +2286,6 @@ async function toggleEolOverride(id) {
 }
 
 
-// ── Archive ───────────────────────────────────────────────────────────────────
-let archiveTimer = null;
-
-async function loadArchive() {
-  const q = document.getElementById('archive-search')?.value || '';
-  const list = document.getElementById('archive-list');
-  const empty = document.getElementById('archive-empty');
-  if (!list) return;
-  try {
-    const params = new URLSearchParams({ archived: 1 });
-    if (q) params.set('q', q);
-    const assets = await apiFetch(API + '?' + params);
-    if (!assets.length) {
-      list.innerHTML = ''; empty.style.display = '';
-    } else {
-      empty.style.display = 'none';
-      list.innerHTML = assets.map(archiveCard).join('');
-    }
-  } catch(e) {}
-}
-
-function archiveCard(a) {
-  const since = a.archivedAt ? timeAgo(a.archivedAt) : 'Unknown';
-  return `<div class="asset-card" id="arc-card-${esc(a.id)}" style="opacity:0.85">
-    <div class="card-spotlight"></div>
-    <div class="card-header">
-      <div>
-        <div class="asset-id">${esc(a.id)}</div>
-        <div class="asset-name">${esc(a.name)}</div>
-      </div>
-      <span class="badge badge-type">${esc(a.type)}</span>
-    </div>
-    <div class="card-meta">
-      ${a.assignedTo ? `<span>👤 ${esc(a.assignedTo)}</span>` : '<span style="color:var(--muted)">Unassigned</span>'}
-      ${a.dept ? `<span>🏢 ${esc(a.dept)}</span>` : ''}
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-top:6px">Archived ${since}</div>
-    <div class="archive-card-actions">
-      <button class="btn btn-primary" style="flex:1;font-size:12px;padding:8px 12px;min-height:auto" onclick="restoreAsset('${esc(a.id)}')">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.07"/></svg>
-        Restore
-      </button>
-      <button class="btn" style="font-size:12px;padding:8px 12px;min-height:auto;background:rgba(255,59,92,0.08);border-color:rgba(255,59,92,0.25);color:var(--red)" onclick="hardDeleteAsset('${esc(a.id)}','${esc(a.name)}')">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        Delete
-      </button>
-    </div>
-  </div>`;
-}
-
-async function archiveAsset(id) {
-  if (!confirm('Archive this asset? It will be hidden from the main list but can be restored.')) return;
-  try {
-    await apiFetch(API + '?archive=1', { method: 'PUT', body: JSON.stringify({ id }) });
-    toast('Asset archived', 'success');
-    // Remove from cachedAssets + re-render
-    const idx = cachedAssets.findIndex(a => a.id === id);
-    if (idx !== -1) cachedAssets.splice(idx, 1);
-    document.getElementById('card-' + id)?.remove();
-    loadDashboard();
-  } catch(e) {}
-}
-
-async function restoreAsset(id) {
-  try {
-    await apiFetch(API + '?restore=1', { method: 'PUT', body: JSON.stringify({ id }) });
-    toast('Asset restored to active list', 'success');
-    document.getElementById('arc-card-' + id)?.remove();
-    loadDashboard();
-    // Check if archive list is now empty
-    const remaining = document.querySelectorAll('[id^="arc-card-"]');
-    if (!remaining.length) {
-      document.getElementById('archive-empty').style.display = '';
-    }
-  } catch(e) {}
-}
-
-async function hardDeleteAsset(id, name) {
-  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
-  try {
-    await apiFetch(API + '?id=' + encodeURIComponent(id), { method: 'DELETE' });
-    toast('Asset permanently deleted', 'success');
-    document.getElementById('arc-card-' + id)?.remove();
-    loadDashboard();
-    const remaining = document.querySelectorAll('[id^="arc-card-"]');
-    if (!remaining.length) {
-      document.getElementById('archive-empty').style.display = '';
-    }
-  } catch(e) {}
-}
 
 // ── Activity Log ──────────────────────────────────────────────────────────────
 let activityOffset = 0;
@@ -2533,9 +2430,9 @@ async function checkAlerts() {
 // ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS PAGE
 // ══════════════════════════════════════════════════════════════════════════════
-const THRESHOLD_TYPES = ['Laptop','Desktop','Monitor','Docking Station','Printer','Camera','Other'];
+const THRESHOLD_TYPES = ['Laptop','Monitor','Docking Station','Printer','Camera','Other'];
 const THRESHOLD_KEYS  = {
-  'Laptop':'threshold_laptop','Desktop':'threshold_desktop','Monitor':'threshold_monitor',
+  'Laptop':'threshold_laptop','Monitor':'threshold_monitor',
   'Docking Station':'threshold_docking_station','Printer':'threshold_printer',
   'Camera':'threshold_camera','Other':'threshold_other'
 };
@@ -3315,6 +3212,7 @@ function openAddModal(){
   document.getElementById('serial-dupe-warn').style.display = 'none';
   document.getElementById('save-btn').textContent='Save Asset';
   document.getElementById('asset-modal').classList.add('open');
+  autoFillAssetId();
   setTimeout(()=>document.getElementById('f-name').focus(),300);
 }
 
@@ -3338,6 +3236,58 @@ async function editAsset(id){
   loadCustomFieldsForModal(a.type, a.id);
   document.getElementById('save-btn').textContent='Update Asset';
   document.getElementById('asset-modal').classList.add('open');
+}
+
+// ── Asset name autocomplete (template from existing) ─────────────────────────
+let nameSuggestions = [];
+let nameSuggestTimer = null;
+
+function onNameInput(val) {
+  if (editingId) return;
+  clearTimeout(nameSuggestTimer);
+  nameSuggestTimer = setTimeout(() => showNameSuggestions(val.trim()), 200);
+}
+
+function showNameSuggestions(val) {
+  const suggs = document.getElementById('name-suggestions');
+  if (!suggs) return;
+  if (!val || val.length < 2) { suggs.style.display = 'none'; return; }
+  const assets = cachedAssets.length ? cachedAssets : [];
+  const seen = new Set();
+  const matches = assets
+    .filter(a => a.name.toLowerCase().includes(val.toLowerCase()))
+    .filter(a => { if (seen.has(a.name)) return false; seen.add(a.name); return true; });
+  if (!matches.length) { suggs.style.display = 'none'; return; }
+  nameSuggestions = matches.slice(0, 8);
+  const currentType = document.getElementById('f-type').value;
+  suggs.innerHTML = nameSuggestions.map((a, i) => `
+    <div class="name-sugg-item" onmousedown="applyTemplate(${i})">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</span>
+      <span class="badge ${T[a.type]||'badge-type'}" style="font-size:10px;padding:1px 8px;flex-shrink:0">${esc(a.type)}</span>
+    </div>`).join('');
+  suggs.style.display = '';
+}
+
+function applyTemplate(idx) {
+  const a = nameSuggestions[idx];
+  if (!a) return;
+  document.getElementById('f-name').value = a.name;
+  document.getElementById('f-type').value = a.type;
+  document.getElementById('f-notes').value = a.notes || '';
+  document.getElementById('name-suggestions').style.display = 'none';
+  loadCustomFieldsForModal(a.type, null);
+  autoFillAssetId();
+}
+
+// ── Auto-fill next asset ID ───────────────────────────────────────────────────
+async function autoFillAssetId() {
+  if (editingId) return;
+  const type = document.getElementById('f-type')?.value || 'Laptop';
+  try {
+    const data = await apiFetch(API + '?next_id=1&type=' + encodeURIComponent(type));
+    const field = document.getElementById('f-asset-num');
+    if (field) field.value = data.id || '';
+  } catch(e) {}
 }
 
 let serialCheckTimer = null;
@@ -3966,24 +3916,6 @@ var _sObs=new MutationObserver(function(muts){
 _sObs.observe(document.body,{childList:true,subtree:true});
 
 </script>
-
-<!-- ARCHIVE PAGE -->
-<div class="page" id="page-archive">
-  <h1 class="page-title">Archive</h1>
-  <p class="page-sub" style="color:var(--muted);margin-top:-8px;margin-bottom:16px;font-size:14px">Archived assets are hidden from the main list. Restore or permanently delete them here.</p>
-  <div class="filter-bar" style="margin-bottom:16px">
-    <div class="search-wrap" style="flex:1">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="archive-search" placeholder="Search archived assets…" oninput="clearTimeout(archiveTimer);archiveTimer=setTimeout(loadArchive,300)">
-    </div>
-  </div>
-  <div id="archive-list" class="asset-list"></div>
-  <div id="archive-empty" class="empty-state" style="display:none;text-align:center;padding:60px 20px">
-    <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 12px;display:block;color:var(--muted)"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-    <h3 style="color:var(--muted);font-weight:600;margin-bottom:4px">No archived assets</h3>
-    <p style="color:var(--muted);font-size:13px">Assets you archive will appear here</p>
-  </div>
-</div>
 
 <!-- ACTIVITY PAGE -->
 <div class="page" id="page-activity">

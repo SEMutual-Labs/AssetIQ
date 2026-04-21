@@ -48,7 +48,7 @@ function validateAssetId(string $id): bool {
 function nextId(PDO $db, string $type = ''): string {
     $prefix = match(strtolower($type)) {
         'laptop' => 'SEM-NB', 'desktop' => 'SEM-PC', 'monitor' => 'SEM-M',
-        'docking station' => 'SEM-D', 'printer' => 'SEM-PR', 'camera' => 'SEM-CAM',
+        'docking station' => 'SEM-D', 'printer' => 'SEM-PR', 'camera' => 'SEM-CAM-',
         default => 'SEM-P',
     };
     $stmt = $db->prepare("SELECT id FROM assets WHERE id LIKE ? ORDER BY id DESC");
@@ -144,6 +144,11 @@ if ($method === 'GET' && isset($_GET['archived'])) {
     $stmt = $db->prepare("SELECT * FROM assets WHERE ".implode(' AND ',$where)." ORDER BY archived_at DESC");
     $stmt->execute($params);
     respond(array_map('rowToAsset', $stmt->fetchAll()));
+}
+
+// GET next available ID for a type
+if ($method === 'GET' && isset($_GET['next_id'])) {
+    respond(['id' => nextId($db, $_GET['type'] ?? '')]);
 }
 
 // GET single
