@@ -250,7 +250,7 @@ body::before {
 .asset-card {
   background: linear-gradient(160deg, #0f1219 0%, #0c0e15 100%);
   border: 1px solid var(--border);
-  border-radius: 14px; overflow: hidden;
+  border-radius: 14px;
   position: relative;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.04),
@@ -270,18 +270,16 @@ body::before {
   position: absolute; top: 14px; left: 14px; z-index: 2;
   width: 20px; height: 20px; border-radius: 6px;
   border: 1.5px solid var(--border2); background: var(--surface2);
-  cursor: pointer; display: none; align-items: center; justify-content: center;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: all .15s;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04);
 }
-.batch-mode .asset-card-checkbox { display: flex; }
-.batch-mode .asset-card-header { padding-left: 42px; }
 .asset-card.selected .asset-card-checkbox {
   background: var(--accent); border-color: var(--accent);
   box-shadow: 0 0 10px rgba(0,229,255,0.4);
 }
 .asset-card-header {
-  padding: 12px 16px 8px;
+  padding: 12px 16px 8px 42px;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }
 .asset-card-name {
@@ -358,6 +356,26 @@ body::before {
 }
 .name-sugg-item:last-child { border-bottom: none; }
 .name-sugg-item:hover { background: var(--surface3, rgba(255,255,255,0.05)); }
+/* ── Scanner scanline ── */
+#serial-scanner-wrap { position: relative; }
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 2px; z-index: 10; pointer-events: none;
+  background: rgba(0,229,255,0.85);
+  box-shadow: 0 0 8px 2px rgba(0,229,255,0.5);
+  animation: scanline-move 1.8s ease-in-out infinite;
+}
+@keyframes scanline-move {
+  0%   { top: 20%; }
+  50%  { top: 80%; }
+  100% { top: 20%; }
+}
+/* ── Assigned-to suggestions (same style as name suggestions) ── */
+.assigned-sugg-wrap { position: relative; }
+#assigned-suggestions {
+  display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 200;
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+  overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
 .card-menu-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
 .card-menu-item.danger { color: var(--red); }
 .card-menu-item.danger:hover { background: rgba(255,59,92,0.06); }
@@ -1610,6 +1628,7 @@ input[type="checkbox"] {
             </div>
             <div id="serial-scanner-wrap" style="display:none;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid var(--border2)">
               <div id="serial-scanner"></div>
+              <div class="scan-line"></div>
             </div>
             <div id="serial-dupe-warn" style="display:none;margin-top:5px;padding:7px 10px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:7px;font-size:12px;font-weight:600;color:var(--amber);align-items:center;gap:7px">
               <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1618,7 +1637,12 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Assigned To</label>
-            <input type="text" id="f-assigned" placeholder="Name or leave blank">
+            <div class="assigned-sugg-wrap">
+              <input type="text" id="f-assigned" placeholder="Name or leave blank" autocomplete="off"
+                oninput="onAssignedInput(this.value)"
+                onblur="setTimeout(()=>{const s=document.getElementById('assigned-suggestions');if(s)s.style.display='none'},150)">
+              <div id="assigned-suggestions"></div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Department</label>
@@ -2148,8 +2172,18 @@ function cancelBatchMode() {
 }
 
 function toggleCardSelect(id, e) {
-  if (!batchMode) return;
   e && e.stopPropagation();
+  if (!batchMode) {
+    batchMode = true;
+    const list = document.getElementById('assets-list');
+    const btn  = document.getElementById('batch-toggle-btn');
+    if (list) list.classList.add('batch-mode');
+    if (btn) {
+      btn.classList.add('active');
+      btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Select All`;
+      btn.onclick = selectAll;
+    }
+  }
   const card = document.getElementById('card-' + id);
   if (!card) return;
   if (selectedIds.has(id)) {
@@ -3276,6 +3310,25 @@ function applyTemplate(idx) {
   document.getElementById('name-suggestions').style.display = 'none';
   loadCustomFieldsForModal(a.type, null);
   autoFillAssetId();
+}
+
+// ── Assigned-to autocomplete ──────────────────────────────────────────────────
+function onAssignedInput(val) {
+  const suggs = document.getElementById('assigned-suggestions');
+  if (!suggs) return;
+  val = val.trim();
+  if (!val || val.length < 1) { suggs.style.display = 'none'; return; }
+  const seen = new Set();
+  const matches = cachedAssets
+    .map(a => a.assignedTo).filter(Boolean)
+    .filter(name => { const k = name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return k.includes(val.toLowerCase()); })
+    .slice(0, 8);
+  if (!matches.length) { suggs.style.display = 'none'; return; }
+  suggs.innerHTML = matches.map(name =>
+    `<div class="name-sugg-item" onmousedown="document.getElementById('f-assigned').value='${esc(name)}';document.getElementById('assigned-suggestions').style.display='none'">
+       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+     </div>`).join('');
+  suggs.style.display = '';
 }
 
 // ── Auto-fill next asset ID ───────────────────────────────────────────────────
