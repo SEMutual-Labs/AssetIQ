@@ -724,6 +724,19 @@ tbody tr:nth-child(even) td { background: rgba(255,255,255,0.01); }
 }
 .tbl-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 8px rgba(0,229,255,0.1), inset 0 1px 0 rgba(255,255,255,0.04); }
 .tbl-btn.danger:hover { border-color: var(--red); color: var(--red); box-shadow: 0 0 8px rgba(255,59,92,0.1); }
+.tbl-cb {
+  width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid var(--border2); background: var(--surface2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+tr.selected .tbl-cb { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(0,229,255,0.4); }
+tr.selected .tbl-cb::after {
+  content: ''; display: block; width: 4px; height: 8px;
+  border: 2px solid #000; border-top: none; border-left: none;
+  transform: rotate(45deg) translate(-1px,-1px);
+}
+tr.selected td { background: rgba(0,229,255,0.04) !important; }
 
 /* ── Desktop nav: icon-only, label animates in on hover/active ── */
 .desktop-nav .nav-btn {
@@ -1558,6 +1571,7 @@ input[type="checkbox"] {
   <div class="table-wrap" id="assets-table-wrap">
     <table>
       <thead><tr>
+        <th style="width:40px;padding:12px 8px 12px 16px"></th>
         <th onclick="sortBy('id')">ID ↕</th>
         <th onclick="sortBy('name')">Name ↕</th>
         <th onclick="sortBy('type')">Type ↕</th>
@@ -1568,7 +1582,7 @@ input[type="checkbox"] {
         <th onclick="sortBy('cost')">Cost ↕</th>
         <th>Actions</th>
       </tr></thead>
-      <tbody id="assets-tbody"><tr><td colspan="9"><div class="spinner"></div></td></tr></tbody>
+      <tbody id="assets-tbody"><tr><td colspan="10"><div class="spinner"></div></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -2021,7 +2035,7 @@ async function loadAssets() {
     assets = await apiFetch(API+'?'+p.toString());
   } catch(e) {
     document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
-    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
+    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
     return;
   }
   if(!assets.length){
@@ -2034,7 +2048,8 @@ async function loadAssets() {
   cachedAssets = assets;
   document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a)).join('');
   document.getElementById('assets-tbody').innerHTML=assets.map(a=>`
-    <tr style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
+    <tr id="trow-${esc(a.id)}" style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
+      <td style="padding:12px 8px 12px 16px;cursor:pointer" onclick="toggleCardSelect('${esc(a.id)}',event)"><div class="tbl-cb"></div></td>
       <td class="font-mono">${esc(a.id)}</td>
       <td><div style="font-weight:600">${esc(a.name)}</div>${a.dept?`<div style="font-size:11px;color:var(--muted)">${esc(a.dept)}</div>`:''}</td>
       <td>${typeBadge(a.type)}</td>
@@ -2154,8 +2169,11 @@ function toggleBatchMode() {
 }
 
 function selectAll() {
-  cachedAssets.forEach(a => selectedIds.add(a.id));
-  document.querySelectorAll('.asset-card').forEach(card => card.classList.add('selected'));
+  cachedAssets.forEach(a => {
+    selectedIds.add(a.id);
+    document.getElementById('card-' + a.id)?.classList.add('selected');
+    document.getElementById('trow-' + a.id)?.classList.add('selected');
+  });
   updateBatchBar();
 }
 
@@ -2163,7 +2181,7 @@ function cancelBatchMode() {
   batchMode = false;
   selectedIds.clear();
   document.getElementById('assets-list').classList.remove('batch-mode');
-  document.querySelectorAll('.asset-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.asset-card, tbody tr').forEach(c => c.classList.remove('selected'));
   document.getElementById('batch-bar').classList.remove('visible');
   const btn = document.getElementById('batch-toggle-btn');
   btn.classList.remove('active');
@@ -2185,13 +2203,16 @@ function toggleCardSelect(id, e) {
     }
   }
   const card = document.getElementById('card-' + id);
-  if (!card) return;
+  const trow = document.getElementById('trow-' + id);
+  if (!card && !trow) return;
   if (selectedIds.has(id)) {
     selectedIds.delete(id);
-    card.classList.remove('selected');
+    card?.classList.remove('selected');
+    trow?.classList.remove('selected');
   } else {
     selectedIds.add(id);
-    card.classList.add('selected');
+    card?.classList.add('selected');
+    trow?.classList.add('selected');
   }
   updateBatchBar();
 }
