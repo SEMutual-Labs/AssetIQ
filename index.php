@@ -1020,6 +1020,23 @@ input[type="checkbox"] {
   background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
   color: var(--accent); border-radius: 4px; text-transform: capitalize;
 }
+.audit-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.audit-row  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.audit-from { background: rgba(255,59,92,0.1); color: var(--red); border-radius: 4px; padding: 1px 6px; font-weight: 600; text-decoration: line-through; opacity: 0.8; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-to   { background: rgba(0,255,136,0.1); color: var(--green); border-radius: 4px; padding: 1px 6px; font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-null { color: var(--muted); font-style: italic; }
+.audit-arrow{ color: var(--muted); }
+.audit-filters {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-bottom: 16px; padding: 12px 16px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+}
+.audit-filters input, .audit-filters select {
+  font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500;
+  background: var(--surface3); border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text); padding: 6px 10px; width: auto;
+}
+.audit-filters label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 /* ── Archive card actions ─────────────────── */
 .archive-card-actions {
   display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
@@ -2374,9 +2391,26 @@ function logEntryHtml(log) {
     ? new Date(log.createdAt.replace(' ','T')).toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})
     : '';
   const who = log.performedBy || 'Unknown';
-  const fields = (log.changedFields || []).map(f =>
-    `<span class="log-field-tag">${FIELD_LABELS[f] || f}</span>`
-  ).join('');
+  const ip  = log.ipAddress ? ` · ${esc(log.ipAddress)}` : '';
+  const cf  = log.changedFields || {};
+  let fieldsHtml = '';
+  if (Array.isArray(cf) && cf.length) {
+    // Legacy format — just field names
+    fieldsHtml = `<div class="log-fields">${cf.map(f=>`<span class="log-field-tag">${FIELD_LABELS[f]||f}</span>`).join('')}</div>`;
+  } else if (cf && typeof cf === 'object' && Object.keys(cf).length) {
+    const rows = Object.entries(cf).map(([f, v]) => {
+      const label = FIELD_LABELS[f] || f;
+      if (v && typeof v === 'object' && ('from' in v || 'to' in v)) {
+        const fromVal = v.from !== null && v.from !== undefined && v.from !== '' ? `<span class="audit-from">${esc(String(v.from))}</span>` : `<span class="audit-null">—</span>`;
+        const toVal   = v.to   !== null && v.to   !== undefined && v.to   !== '' ? `<span class="audit-to">${esc(String(v.to))}</span>`   : `<span class="audit-null">—</span>`;
+        if (v.from === null) return `<div class="audit-row"><span class="log-field-tag">${label}</span> set to ${toVal}</div>`;
+        if (v.to   === null) return `<div class="audit-row"><span class="log-field-tag">${label}</span> was ${fromVal}</div>`;
+        return `<div class="audit-row"><span class="log-field-tag">${label}</span> ${fromVal} <span class="audit-arrow">→</span> ${toVal}</div>`;
+      }
+      return `<div class="audit-row"><span class="log-field-tag">${label}</span></div>`;
+    }).join('');
+    fieldsHtml = `<div class="audit-rows">${rows}</div>`;
+  }
   const nameLink = action !== 'deleted'
     ? `<a href="#" onclick="event.preventDefault();showPage('assets');setTimeout(()=>openEditModal('${esc(log.assetId)}'),300)">${esc(log.assetName)}</a>`
     : `<span>${esc(log.assetName)}</span>`;
@@ -2384,8 +2418,8 @@ function logEntryHtml(log) {
     <div class="log-icon ${action}">${icon}</div>
     <div class="log-body">
       <div class="log-title">${label} — ${nameLink} <span style="color:var(--muted);font-weight:400">(${esc(log.assetId)})</span></div>
-      <div class="log-meta" title="${absDate}">${esc(who)} · ${when}</div>
-      ${fields ? `<div class="log-fields">${fields}</div>` : ''}
+      <div class="log-meta" title="${absDate}">${esc(who)}${ip} · ${when} · <span style="color:var(--muted)">${absDate}</span></div>
+      ${fieldsHtml}
     </div>
   </div>`;
 }
@@ -2398,6 +2432,14 @@ async function loadActivity(reset = true) {
   if (!list) return;
   try {
     const params = new URLSearchParams({ logs: 1, limit: ACTIVITY_LIMIT, offset: activityOffset });
+    const fromDate  = document.getElementById('audit-from')?.value;
+    const toDate    = document.getElementById('audit-to')?.value;
+    const actFilter = document.getElementById('audit-action')?.value;
+    const actorFilt = document.getElementById('audit-actor')?.value;
+    if (fromDate)  params.set('from_date', fromDate);
+    if (toDate)    params.set('to_date',   toDate);
+    if (actFilter) params.set('action',    actFilter);
+    if (actorFilt) params.set('actor',     actorFilt);
     const data = await apiFetch(API + '?' + params);
     const logs = data.logs || [];
     if (reset) list.innerHTML = '';
@@ -2413,6 +2455,29 @@ async function loadActivity(reset = true) {
 }
 
 async function loadMoreActivity() { await loadActivity(false); }
+
+function exportAuditLog() {
+  const params = new URLSearchParams({ logs: 1, csv: 1, limit: 9999 });
+  const fromDate  = document.getElementById('audit-from')?.value;
+  const toDate    = document.getElementById('audit-to')?.value;
+  const actFilter = document.getElementById('audit-action')?.value;
+  const actorFilt = document.getElementById('audit-actor')?.value;
+  if (fromDate)  params.set('from_date', fromDate);
+  if (toDate)    params.set('to_date',   toDate);
+  if (actFilter) params.set('action',    actFilter);
+  if (actorFilt) params.set('actor',     actorFilt);
+  // Session cookie is sent automatically — no Bearer needed
+  fetch(API + '?' + params, { credentials: 'same-origin' })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const el  = document.createElement('a');
+      el.href = url;
+      el.download = `AssetIQ_Audit_${new Date().toISOString().split('T')[0]}.csv`;
+      el.click(); URL.revokeObjectURL(url);
+      toast('Audit log exported', 'success');
+    }).catch(() => toast('Export failed', 'error'));
+}
 
 // Per-asset activity drawer
 async function showAssetLog(assetId) {
@@ -3992,13 +4057,48 @@ _sObs.observe(document.body,{childList:true,subtree:true});
 
 <!-- ACTIVITY PAGE -->
 <div class="page" id="page-activity">
-  <h1 class="page-title">Activity Log</h1>
-  <p class="page-sub" style="color:var(--muted);margin-top:-8px;margin-bottom:20px;font-size:14px">Full audit trail — every create, edit, archive, restore, and delete.</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+    <div>
+      <h1 class="page-title" style="margin-bottom:4px">Audit Trail</h1>
+      <p style="color:var(--muted);font-size:14px">Every create, edit, and delete with before &amp; after values, user, IP, and timestamp.</p>
+    </div>
+    <button class="btn btn-ghost" onclick="exportAuditLog()" style="width:auto;min-width:auto;padding:10px 16px;min-height:auto;gap:7px;flex-shrink:0">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+  </div>
+  <div class="audit-filters">
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label>From</label>
+      <input type="date" id="audit-from" onchange="loadActivity(true)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label>To</label>
+      <input type="date" id="audit-to" onchange="loadActivity(true)">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label>Action</label>
+      <select id="audit-action" onchange="loadActivity(true)">
+        <option value="">All actions</option>
+        <option value="created">Created</option>
+        <option value="updated">Updated</option>
+        <option value="id_changed">ID Changed</option>
+        <option value="deleted">Deleted</option>
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label>User</label>
+      <input type="text" id="audit-actor" placeholder="Filter by user…" oninput="clearTimeout(window._auditTimer);window._auditTimer=setTimeout(()=>loadActivity(true),400)" style="min-width:160px">
+    </div>
+    <button class="btn btn-ghost" onclick="document.getElementById('audit-from').value='';document.getElementById('audit-to').value='';document.getElementById('audit-action').value='';document.getElementById('audit-actor').value='';loadActivity(true)" style="width:auto;min-width:auto;padding:6px 12px;min-height:auto;margin-top:16px;font-size:12px">
+      Clear
+    </button>
+  </div>
   <div id="activity-list" style="display:flex;flex-direction:column;gap:6px"></div>
   <div id="activity-empty" class="empty-state" style="display:none;text-align:center;padding:60px 20px">
     <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 12px;display:block;color:var(--muted)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    <h3 style="color:var(--muted);font-weight:600;margin-bottom:4px">No activity yet</h3>
-    <p style="color:var(--muted);font-size:13px">Changes to assets will be tracked here</p>
+    <h3 style="color:var(--muted);font-weight:600;margin-bottom:4px">No activity found</h3>
+    <p style="color:var(--muted);font-size:13px">Try adjusting the filters above</p>
   </div>
   <button id="activity-load-more" onclick="loadMoreActivity()" style="display:none;width:100%;margin-top:16px;padding:12px;background:var(--surface2);border:1px solid var(--border2);color:var(--fg2);border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;transition:background 0.2s">
     Load more

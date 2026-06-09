@@ -62,6 +62,7 @@ function installSchema(): void {
         INDEX idx_asset_id  (asset_id),
         INDEX idx_created_at (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $db->exec("ALTER TABLE asset_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL");
 
     // ── Settings ──────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS settings (

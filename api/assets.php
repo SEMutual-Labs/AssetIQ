@@ -77,13 +77,20 @@ function rowToAsset(array $r): array {
     ];
 }
 function writeLog(PDO $db, string $assetId, string $assetName, string $action, array $changed, string $actor): void {
-    $db->prepare("INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by) VALUES (?,?,?,?,?)")
-       ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor]);
+    $ip = null;
+    foreach (['HTTP_CF_CONNECTING_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k)
+        if (!empty($_SERVER[$k])) { $ip = trim(explode(',', $_SERVER[$k])[0]); break; }
+    $db->prepare("INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by,ip_address) VALUES (?,?,?,?,?,?)")
+       ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor, $ip]);
 }
 function diffFields(array $old, array $new): array {
     $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost','notes','eol_override'];
     $changed = [];
-    foreach ($track as $f) if ((string)($old[$f]??'') !== (string)($new[$f]??'')) $changed[] = $f;
+    foreach ($track as $f) {
+        $ov = (string)($old[$f] ?? '');
+        $nv = (string)($new[$f] ?? '');
+        if ($ov !== $nv) $changed[$f] = ['from' => $old[$f] ?? null, 'to' => $new[$f] ?? null];
+    }
     return $changed;
 }
 
@@ -92,9 +99,41 @@ function diffFields(array $old, array $new): array {
 // Audit log
 if ($method === 'GET' && isset($_GET['logs'])) {
     $where = ['1=1']; $params = [];
-    if (!empty($_GET['id'])) { $where[] = 'asset_id = ?'; $params[] = $_GET['id']; }
-    $limit  = min((int)($_GET['limit'] ?? 50), 200);
+    if (!empty($_GET['id']))        { $where[] = 'asset_id = ?';              $params[] = $_GET['id']; }
+    if (!empty($_GET['action']))    { $where[] = 'action = ?';                $params[] = $_GET['action']; }
+    if (!empty($_GET['actor']))     { $where[] = 'performed_by LIKE ?';       $params[] = '%'.$_GET['actor'].'%'; }
+    if (!empty($_GET['from_date'])) { $where[] = 'DATE(created_at) >= ?';     $params[] = $_GET['from_date']; }
+    if (!empty($_GET['to_date']))   { $where[] = 'DATE(created_at) <= ?';     $params[] = $_GET['to_date']; }
+    $limit  = min((int)($_GET['limit'] ?? 50), 500);
     $offset = (int)($_GET['offset'] ?? 0);
+
+    // CSV export
+    if (isset($_GET['csv'])) {
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="AssetIQ_Audit_'.date('Y-m-d').'.csv"');
+        header('Cache-Control: no-cache'); echo "\xEF\xBB\xBF";
+        $all = $db->prepare("SELECT * FROM asset_logs WHERE ".implode(' AND ',$where)." ORDER BY created_at DESC");
+        $all->execute($params);
+        $out = fopen('php://output','w');
+        fputcsv($out, ['Log ID','Asset ID','Asset Name','Action','Changed Fields','Performed By','IP Address','Timestamp']);
+        foreach ($all->fetchAll() as $r) {
+            $cf = $r['changed_fields'] ? json_decode($r['changed_fields'], true) : [];
+            $cfText = '';
+            if (is_array($cf)) {
+                $parts = [];
+                foreach ($cf as $field => $val) {
+                    if (is_array($val) && isset($val['from'])) $parts[] = "$field: \"{$val['from']}\" → \"{$val['to']}\"";
+                    elseif (is_array($val) && isset($val['to'])) $parts[] = "$field: \"{$val['to']}\"";
+                    elseif (is_string($field) && is_string($val)) $parts[] = $val;
+                    else $parts[] = $field;
+                }
+                $cfText = implode('; ', $parts);
+            }
+            fputcsv($out, [$r['id'],$r['asset_id'],$r['asset_name'],$r['action'],$cfText,$r['performed_by'],$r['ip_address']??'',$r['created_at']]);
+        }
+        fclose($out); exit;
+    }
+
     $rows = $db->prepare("SELECT * FROM asset_logs WHERE ".implode(' AND ',$where)." ORDER BY created_at DESC LIMIT $limit OFFSET $offset");
     $rows->execute($params); $rows = $rows->fetchAll();
     $cstmt = $db->prepare("SELECT COUNT(*) FROM asset_logs WHERE ".implode(' AND ',$where));
@@ -102,7 +141,7 @@ if ($method === 'GET' && isset($_GET['logs'])) {
     respond(['logs' => array_map(fn($r)=>[
         'id'=>$r['id'],'assetId'=>$r['asset_id'],'assetName'=>$r['asset_name'],
         'action'=>$r['action'],'changedFields'=>$r['changed_fields']?json_decode($r['changed_fields'],true):[],
-        'performedBy'=>$r['performed_by'],'createdAt'=>$r['created_at'],
+        'performedBy'=>$r['performed_by'],'ipAddress'=>$r['ip_address']??null,'createdAt'=>$r['created_at'],
     ], $rows), 'total'=>$total]);
 }
 
@@ -204,7 +243,10 @@ if ($method === 'POST') {
     $s = sanitizeAsset($d);
     $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
        ->execute(array_merge(['id'=>$id],$s));
-    writeLog($db,$id,$s['name'],'created',[],$actor);
+    $initVals = [];
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+        if (isset($s[$f]) && $s[$f] !== '' && $s[$f] !== null) $initVals[$f] = ['from' => null, 'to' => $s[$f]];
+    writeLog($db,$id,$s['name'],'created',$initVals,$actor);
     $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$id]);
     respond(rowToAsset($sel->fetch()),201);
 }
@@ -248,7 +290,7 @@ if ($method === 'PUT') {
             $db->prepare("UPDATE custom_field_values SET asset_id=? WHERE asset_id=?")->execute([$newId, $workingId]);
             $db->prepare("UPDATE asset_links SET asset_id_a=? WHERE asset_id_a=?")->execute([$newId, $workingId]);
             $db->prepare("UPDATE asset_links SET asset_id_b=? WHERE asset_id_b=?")->execute([$newId, $workingId]);
-            writeLog($db,$newId,$old['name'],'id_changed',['id'],$actor);
+            writeLog($db,$newId,$old['name'],'id_changed',['id'=>['from'=>$d['id'],'to'=>$newId]],$actor);
             $workingId = $newId;
         }
     }
@@ -262,9 +304,12 @@ if ($method === 'PUT') {
 
 // DELETE — hard delete
 if ($method === 'DELETE' && isset($_GET['id'])) {
-    $stmt = $db->prepare("SELECT name FROM assets WHERE id=?"); $stmt->execute([$_GET['id']]);
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$_GET['id']]);
     $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
-    writeLog($db,$_GET['id'],$row['name'],'deleted',[],$actor);
+    $finalVals = [];
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+        if (isset($row[$f]) && $row[$f] !== '' && $row[$f] !== null) $finalVals[$f] = ['from' => $row[$f], 'to' => null];
+    writeLog($db,$_GET['id'],$row['name'],'deleted',$finalVals,$actor);
     $db->prepare("DELETE FROM assets WHERE id=?")->execute([$_GET['id']]);
     respond(['deleted'=>$_GET['id']]);
 }
