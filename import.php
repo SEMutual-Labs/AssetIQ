@@ -114,6 +114,11 @@ foreach ($assets as $a) {
                 'end_of_life'  => $a['end_of_life'] ?? null,
                 'notes'        => $a['notes'] ?? '',
             ]);
+            $initVals = [];
+            foreach (['type','serial','assigned_to','department','purchase_date','end_of_life'] as $f)
+                if (!empty($a[$f])) $initVals[$f] = ['from' => null, 'to' => $a[$f]];
+            $importUser = auth_user();
+            auditLog($db, $id, $name, 'imported', $initVals, $importUser['name'] ?? $importUser['email'] ?? 'Unknown');
             if ($serial) $existingSerials[] = $serial;
             $imported++;
         } catch (Exception $e) {

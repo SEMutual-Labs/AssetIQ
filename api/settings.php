@@ -103,9 +103,26 @@ if ($method === 'POST') {
     if (isset($d['key']) && isset($d['value'])) {
         $d = [$d['key'] => $d['value']];
     }
+    $old = [];
+    foreach ($db->query("SELECT `key`,`value` FROM settings")->fetchAll() as $r) $old[$r['key']] = $r['value'];
     $stmt = $db->prepare("INSERT INTO settings (`key`,`value`) VALUES (?,?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`), updated_at=NOW()");
+    $changed = [];
     foreach ($d as $k => $v) {
-        if (in_array($k, ALLOWED_SETTING_KEYS, true)) $stmt->execute([$k, (string)$v]);
+        if (!in_array($k, ALLOWED_SETTING_KEYS, true)) continue;
+        $stmt->execute([$k, (string)$v]);
+        if ((string)($old[$k] ?? '') !== (string)$v) {
+            // Never write secret values into the audit log
+            $mask = $k === 'anthropic_api_key';
+            $changed[$k] = [
+                'from' => isset($old[$k]) ? ($mask ? '•••' : $old[$k]) : null,
+                'to'   => $mask ? '•••' : (string)$v,
+            ];
+        }
+    }
+    if ($changed) {
+        $user  = auth_user();
+        $actor = $user['name'] ?? $user['email'] ?? 'Unknown';
+        auditLog($db, '', 'Settings', 'settings_changed', $changed, $actor);
     }
     respond(['saved' => true]);
 }

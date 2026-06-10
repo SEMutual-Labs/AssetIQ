@@ -12,10 +12,18 @@ require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
 send_cors_headers('GET, POST, DELETE, OPTIONS');
 
-$db = getDB();
+$db    = getDB();
+$user  = auth_user();
+$actor = $user['name'] ?? $user['email'] ?? 'Unknown';
 
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
+}
+function assetNames(PDO $db, array $ids): array {
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("SELECT id, name FROM assets WHERE id IN ($in)");
+    $stmt->execute($ids);
+    return array_column($stmt->fetchAll(), 'name', 'id');
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -51,6 +59,9 @@ if ($method === 'POST') {
     try {
         $db->prepare("INSERT INTO asset_links (asset_id_a, asset_id_b, note) VALUES (?,?,?)")
            ->execute([$a,$b,$note]);
+        $names = assetNames($db, [$a,$b]);
+        auditLog($db, $a, $names[$a] ?? $a, 'link_added', ['linked_to'=>['from'=>null,'to'=>"$b (".($names[$b] ?? '?').")"]], $actor);
+        auditLog($db, $b, $names[$b] ?? $b, 'link_added', ['linked_to'=>['from'=>null,'to'=>"$a (".($names[$a] ?? '?').")"]], $actor);
         respond(['created' => true, 'id' => $db->lastInsertId()]);
     } catch (\PDOException $e) {
         if ($e->getCode() === '23000') respond(['error' => 'Link already exists'], 409);
@@ -60,9 +71,15 @@ if ($method === 'POST') {
 
 // DELETE — remove link
 if ($method === 'DELETE' && isset($_GET['id'])) {
-    $stmt = $db->prepare("DELETE FROM asset_links WHERE id=?");
-    $stmt->execute([$_GET['id']]);
-    if ($stmt->rowCount() === 0) respond(['error' => 'Not found'], 404);
+    $sel = $db->prepare("SELECT asset_id_a, asset_id_b FROM asset_links WHERE id=?");
+    $sel->execute([$_GET['id']]);
+    $link = $sel->fetch();
+    if (!$link) respond(['error' => 'Not found'], 404);
+    $db->prepare("DELETE FROM asset_links WHERE id=?")->execute([$_GET['id']]);
+    [$a,$b] = [$link['asset_id_a'], $link['asset_id_b']];
+    $names = assetNames($db, [$a,$b]);
+    auditLog($db, $a, $names[$a] ?? $a, 'link_removed', ['linked_to'=>['from'=>"$b (".($names[$b] ?? '?').")",'to'=>null]], $actor);
+    auditLog($db, $b, $names[$b] ?? $b, 'link_removed', ['linked_to'=>['from'=>"$a (".($names[$a] ?? '?').")",'to'=>null]], $actor);
     respond(['deleted' => true]);
 }
 
