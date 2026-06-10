@@ -15,7 +15,9 @@ require_once __DIR__ . '/../auth/auth.php';
 auth_require_json();
 send_cors_headers('GET, POST, DELETE, OPTIONS');
 
-$db = getDB();
+$db    = getDB();
+$user  = auth_user();
+$actor = $user['name'] ?? $user['email'] ?? 'Unknown';
 
 function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
@@ -45,9 +47,23 @@ if ($method === 'GET') {
 if ($method === 'POST' && isset($_GET['values'])) {
     $d = json_decode(file_get_contents('php://input'), true) ?? [];
     if (empty($d['asset_id'])) respond(['error' => 'asset_id required'], 422);
+    // Snapshot current values so we can audit what actually changed
+    $cur = $db->prepare("SELECT field_key, value FROM custom_field_values WHERE asset_id = ?");
+    $cur->execute([$d['asset_id']]);
+    $old = array_column($cur->fetchAll(), 'value', 'field_key');
+    $labels = array_column($db->query("SELECT field_key, label FROM custom_field_defs")->fetchAll(), 'label', 'field_key');
     $stmt = $db->prepare("INSERT INTO custom_field_values (asset_id, field_key, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)");
+    $changed = [];
     foreach (($d['values'] ?? []) as $key => $val) {
-        if (strlen($key) <= 64) $stmt->execute([$d['asset_id'], $key, (string)$val]);
+        if (strlen($key) > 64) continue;
+        $stmt->execute([$d['asset_id'], $key, (string)$val]);
+        if ((string)($old[$key] ?? '') !== (string)$val)
+            $changed[$labels[$key] ?? $key] = ['from' => $old[$key] ?? null, 'to' => (string)$val];
+    }
+    if ($changed) {
+        $nameStmt = $db->prepare("SELECT name FROM assets WHERE id=?");
+        $nameStmt->execute([$d['asset_id']]);
+        auditLog($db, $d['asset_id'], (string)($nameStmt->fetchColumn() ?: $d['asset_id']), 'updated', $changed, $actor);
     }
     respond(['saved' => true]);
 }
@@ -64,6 +80,7 @@ if ($method === 'POST') {
     try {
         $db->prepare("INSERT INTO custom_field_defs (asset_type, label, field_key, field_type) VALUES (?,?,?,'date')")
            ->execute([$type, $label, $key]);
+        auditLog($db, '', "$label ($type)", 'field_added', [], $actor);
         respond(['created' => true, 'id' => $db->lastInsertId(), 'field_key' => $key]);
     } catch (\PDOException $e) {
         if ($e->getCode() === '23000') respond(['error' => 'Field already exists for this type'], 409);
@@ -73,12 +90,13 @@ if ($method === 'POST') {
 
 // DELETE — remove field def + all its values
 if ($method === 'DELETE' && isset($_GET['id'])) {
-    $stmt = $db->prepare("SELECT field_key, asset_type FROM custom_field_defs WHERE id = ?");
+    $stmt = $db->prepare("SELECT field_key, asset_type, label FROM custom_field_defs WHERE id = ?");
     $stmt->execute([$_GET['id']]);
     $def = $stmt->fetch();
     if (!$def) respond(['error' => 'Not found'], 404);
     $db->prepare("DELETE FROM custom_field_values WHERE field_key = ?")->execute([$def['field_key']]);
     $db->prepare("DELETE FROM custom_field_defs WHERE id = ?")->execute([$_GET['id']]);
+    auditLog($db, '', "{$def['label']} ({$def['asset_type']})", 'field_removed', [], $actor);
     respond(['deleted' => true]);
 }
 

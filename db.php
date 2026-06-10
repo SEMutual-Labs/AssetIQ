@@ -19,6 +19,16 @@ function getDB(): PDO {
     return $pdo;
 }
 
+// Shared audit-log writer — used by every API endpoint that mutates data.
+// $assetId may be '' for system-level events (settings, field definitions).
+function auditLog(PDO $db, string $assetId, string $assetName, string $action, array $changed, string $actor): void {
+    $ip = null;
+    foreach (['HTTP_CF_CONNECTING_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k)
+        if (!empty($_SERVER[$k])) { $ip = trim(explode(',', $_SERVER[$k])[0]); break; }
+    $db->prepare("INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by,ip_address) VALUES (?,?,?,?,?,?)")
+       ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor, $ip]);
+}
+
 function installSchema(): void {
     $db = getDB();
 
@@ -45,6 +55,7 @@ function installSchema(): void {
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS eol_override TINYINT(1)  NOT NULL DEFAULT 0");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived     TINYINT(1)  NOT NULL DEFAULT 0");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived_at  DATETIME    NULL");
+    $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS disposed_date DATE       DEFAULT NULL AFTER end_of_life");
 
     // Convert any archived assets to retired status (archive feature removed)
     $db->exec("UPDATE assets SET archived=0, archived_at=NULL, status='retired' WHERE COALESCE(archived,0)=1 AND COALESCE(status,'active')!='retired'");

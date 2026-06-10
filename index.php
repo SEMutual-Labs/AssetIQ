@@ -1561,9 +1561,9 @@ input[type="checkbox"] {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         AI Estimate
       </button>
-      <button class="batch-btn batch-btn-del" onclick="batchDelete()">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        Delete
+      <button class="batch-btn batch-btn-del" onclick="batchRetire()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        Retire
       </button>
       <button class="batch-btn batch-btn-cancel" onclick="cancelBatchMode()">Cancel</button>
     </div>
@@ -1596,10 +1596,11 @@ input[type="checkbox"] {
         <th onclick="sortBy('assigned_to')">Assigned To ↕</th>
         <th onclick="sortBy('purchase_date')">Purchase Date ↕</th>
         <th onclick="sortBy('end_of_life')">End of Life ↕</th>
+        <th id="th-disposed" style="display:none" onclick="sortBy('disposed_date')">Disposed ↕</th>
         <th onclick="sortBy('cost')">Cost ↕</th>
         <th>Actions</th>
       </tr></thead>
-      <tbody id="assets-tbody"><tr><td colspan="10"><div class="spinner"></div></td></tr></tbody>
+      <tbody id="assets-tbody"><tr><td colspan="11"><div class="spinner"></div></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1683,10 +1684,14 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Status</label>
-            <select id="f-status">
+            <select id="f-status" onchange="onStatusChange()">
               <option value="active">Active</option>
               <option value="retired">Retired</option>
             </select>
+          </div>
+          <div class="form-group" id="f-disposed-wrap" style="display:none">
+            <label class="form-label">Disposed Date</label>
+            <input type="date" id="f-disposed">
           </div>
           <div class="form-group">
             <label class="form-label">Purchase Date</label>
@@ -2045,14 +2050,14 @@ async function loadAssets() {
   if(q)p.set('q',q); if(ft)p.set('type',ft); if(fs)p.set('status',fs); if(fd)p.set('dept',fd);
   p.set('sort',sortKey); p.set('dir',sortAsc?'asc':'desc');
   document.getElementById('assets-list').innerHTML='<div class="spinner"></div>';
-  document.getElementById('assets-tbody').innerHTML=`<tr><td colspan="9"><div class="spinner"></div></td></tr>`;
+  document.getElementById('assets-tbody').innerHTML=`<tr><td colspan="11"><div class="spinner"></div></td></tr>`;
   document.getElementById('asset-empty').style.display='none';
   let assets;
   try {
     assets = await apiFetch(API+'?'+p.toString());
   } catch(e) {
     document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
-    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
+    document.getElementById('assets-tbody').innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
     return;
   }
   if(!assets.length){
@@ -2063,7 +2068,11 @@ async function loadAssets() {
   }
   document.getElementById('asset-empty').style.display='none';
   cachedAssets = assets;
-  document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a)).join('');
+  // Disposed date column only appears on the Retired list
+  const showDisposed = fs==='retired';
+  const thDisposed = document.getElementById('th-disposed');
+  if (thDisposed) thDisposed.style.display = showDisposed ? '' : 'none';
+  document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a, showDisposed)).join('');
   document.getElementById('assets-tbody').innerHTML=assets.map(a=>`
     <tr id="trow-${esc(a.id)}" style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
       <td style="padding:12px 8px 12px 16px;cursor:pointer" onclick="toggleCardSelect('${esc(a.id)}',event)"><div class="tbl-cb"></div></td>
@@ -2074,6 +2083,7 @@ async function loadAssets() {
       <td>${a.assignedTo||'<span style="color:var(--muted)">Unassigned</span>'}</td>
       <td class="font-mono">${a.purchaseDate||'—'}</td>
       <td class="font-mono" style="${eolStatus(a.endOfLife)==='critical'?'color:var(--red)':eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'—'} ${eolFlag(a.endOfLife)||''}</td>
+      ${showDisposed?`<td class="font-mono">${a.disposedDate||'—'}</td>`:''}
       <td class="font-mono">${a.cost?'$'+Number(a.cost).toLocaleString():'—'}</td>
       <td><div class="tbl-actions">
         <button class="tbl-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">QR</button>
@@ -2095,7 +2105,7 @@ function eolMenuHtml(id, eolOverride, isEolActive) {
     `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icon}</svg>${label}</div>`;
 }
 
-function assetCard(a) {
+function assetCard(a, showDisposed = false) {
   const flag    = eolFlag(a.endOfLife, a.eolOverride);
   const retired = a.status === 'retired';
   const isEolActive = !a.eolOverride && eolStatus(a.endOfLife);
@@ -2120,6 +2130,7 @@ function assetCard(a) {
       <div class="asset-card-field"><label>Department</label><span>${a.dept?esc(a.dept):'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>Purchase Date</label><span>${a.purchaseDate||'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>End of Life</label><span style="${!a.eolOverride&&eolStatus(a.endOfLife)==='critical'?'color:var(--red)':!a.eolOverride&&eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
+      ${showDisposed&&retired?`<div class="asset-card-field"><label>Disposed</label><span>${a.disposedDate||'<span style="color:var(--muted)">—</span>'}</span></div>`:''}
       ${renderCustomFieldChips(a.id, a.type)}
     </div>
     <div class="asset-card-actions">
@@ -2242,18 +2253,21 @@ function updateBatchBar() {
   bar.classList.toggle('visible', batchMode && n > 0);
 }
 
-async function batchDelete() {
+async function batchRetire() {
   const ids = [...selectedIds];
   if (!ids.length) return;
-  if (!confirm(`Delete ${ids.length} asset${ids.length>1?'s':''}? This cannot be undone.`)) return;
-  let done = 0;
+  if (!confirm(`Retire ${ids.length} asset${ids.length>1?'s':''}? They will be moved to the Retired list.`)) return;
+  let done = 0, failed = 0;
   for (const id of ids) {
-    await apiFetch(`${API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    done++;
+    try {
+      await apiFetch(`${API}?retire=1`, { method: 'PUT', body: JSON.stringify({ id }) });
+      done++;
+    } catch { failed++; }
   }
-  toast(`Deleted ${done} asset${done>1?'s':''}`, 'success');
+  toast(`Retired ${done} asset${done>1?'s':''}${failed?` (${failed} failed)`:''}`, done ? 'success' : 'error');
   cancelBatchMode();
   loadAssets();
+  loadDashboard();
 }
 
 async function batchArchive() {
@@ -2369,17 +2383,29 @@ const LOG_ICONS = {
   archived: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
   restored: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.07"/></svg>`,
   deleted:  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>`,
+  retired:  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+  imported: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  link_added:   `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  link_removed: `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`,
+  field_added:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>`,
+  field_removed:   `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>`,
+  settings_changed:`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
 
 const LOG_LABELS = {
   created: 'Created',  updated: 'Updated',
   archived: 'Archived', restored: 'Restored', deleted: 'Deleted',
+  retired: 'Retired', imported: 'Imported',
+  link_added: 'Link Added', link_removed: 'Link Removed',
+  field_added: 'Custom Field Added', field_removed: 'Custom Field Removed',
+  settings_changed: 'Settings Changed', id_changed: 'ID Changed',
 };
 
 const FIELD_LABELS = {
   name:'Name', type:'Type', serial:'Serial', assigned_to:'Assigned To',
   department:'Department', status:'Status', purchase_date:'Purchase Date',
-  end_of_life:'End of Life', cost:'Cost', notes:'Notes', eol_override:'EOL Override',
+  end_of_life:'End of Life', disposed_date:'Disposed Date', cost:'Cost',
+  notes:'Notes', eol_override:'EOL Override', linked_to:'Linked Asset', source:'Source',
 };
 
 function logEntryHtml(log) {
@@ -2411,13 +2437,14 @@ function logEntryHtml(log) {
     }).join('');
     fieldsHtml = `<div class="audit-rows">${rows}</div>`;
   }
-  const nameLink = action !== 'deleted'
+  const nameLink = (action !== 'deleted' && log.assetId)
     ? `<a href="#" onclick="event.preventDefault();showPage('assets');setTimeout(()=>openEditModal('${esc(log.assetId)}'),300)">${esc(log.assetName)}</a>`
     : `<span>${esc(log.assetName)}</span>`;
+  const idTag = log.assetId ? ` <span style="color:var(--muted);font-weight:400">(${esc(log.assetId)})</span>` : '';
   return `<div class="log-entry">
     <div class="log-icon ${action}">${icon}</div>
     <div class="log-body">
-      <div class="log-title">${label} — ${nameLink} <span style="color:var(--muted);font-weight:400">(${esc(log.assetId)})</span></div>
+      <div class="log-title">${label} — ${nameLink}${idTag}</div>
       <div class="log-meta" title="${absDate}">${esc(who)}${ip} · ${when} · <span style="color:var(--muted)">${absDate}</span></div>
       ${fieldsHtml}
     </div>
@@ -3322,6 +3349,8 @@ function openAddModal(){
   document.getElementById('f-type').value='Laptop';
   document.getElementById('f-dept').value='';
   document.getElementById('f-status').value='active';
+  document.getElementById('f-disposed').value='';
+  onStatusChange();
   document.getElementById('f-cost').value='';
   document.getElementById('ai-price-result').style.display='none';
   document.getElementById('f-type').value='Laptop';
@@ -3346,6 +3375,8 @@ async function editAsset(id){
   document.getElementById('f-assigned').value=a.assignedTo||'';
   document.getElementById('f-dept').value=a.dept||'';
   document.getElementById('f-status').value=a.status||'active';
+  document.getElementById('f-disposed').value=a.disposedDate||'';
+  onStatusChange();
   document.getElementById('f-date').value=a.purchaseDate||'';
   document.getElementById('f-eol').value=a.endOfLife||'';
   document.getElementById('f-cost').value=a.cost||'';
@@ -3356,6 +3387,14 @@ async function editAsset(id){
   loadCustomFieldsForModal(a.type, a.id);
   document.getElementById('save-btn').textContent='Update Asset';
   document.getElementById('asset-modal').classList.add('open');
+}
+
+function onStatusChange(){
+  const retired=document.getElementById('f-status').value==='retired';
+  document.getElementById('f-disposed-wrap').style.display=retired?'':'none';
+  const inp=document.getElementById('f-disposed');
+  if(retired&&!inp.value)inp.value=new Date().toISOString().slice(0,10);
+  if(!retired)inp.value='';
 }
 
 // ── Asset name autocomplete (template from existing) ─────────────────────────
@@ -3469,6 +3508,7 @@ async function saveAsset(){
     assigned_to:document.getElementById('f-assigned').value.trim(),
     department:document.getElementById('f-dept').value.trim(),
     status:document.getElementById('f-status').value,
+    disposed_date:document.getElementById('f-disposed').value||null,
     purchase_date:document.getElementById('f-date').value||null,
     end_of_life:document.getElementById('f-eol').value||null,
     cost:document.getElementById('f-cost').value||null,
@@ -4082,8 +4122,15 @@ _sObs.observe(document.body,{childList:true,subtree:true});
         <option value="">All actions</option>
         <option value="created">Created</option>
         <option value="updated">Updated</option>
+        <option value="retired">Retired</option>
+        <option value="imported">Imported</option>
         <option value="id_changed">ID Changed</option>
         <option value="deleted">Deleted</option>
+        <option value="link_added">Link Added</option>
+        <option value="link_removed">Link Removed</option>
+        <option value="field_added">Custom Field Added</option>
+        <option value="field_removed">Custom Field Removed</option>
+        <option value="settings_changed">Settings Changed</option>
       </select>
     </div>
     <div style="display:flex;flex-direction:column;gap:3px">

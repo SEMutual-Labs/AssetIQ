@@ -284,6 +284,11 @@ if ($action === 'import') {
                 'end_of_life'  => $eol,
                 'notes'        => 'Imported from Intune. OS: ' . trim($d['os'] ?? '') . ($d['userEmail'] ? ' | User: '.$d['userEmail'] : ''),
             ]);
+            $initVals = ['source' => ['from' => null, 'to' => 'Intune sync']];
+            foreach (['type'=>$d['type'] ?? 'Laptop','serial'=>$serial,'assigned_to'=>$assignedTo,'purchase_date'=>$enrolled,'end_of_life'=>$eol] as $f => $v)
+                if (!empty($v)) $initVals[$f] = ['from' => null, 'to' => $v];
+            $intuneUser = auth_user();
+            auditLog($db, $id, $name, 'imported', $initVals, $intuneUser['name'] ?? $intuneUser['email'] ?? 'Unknown');
             $imported++;
 
         } catch (Exception $e) {

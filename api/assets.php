@@ -28,15 +28,19 @@ function sanitizeDate(?string $val): ?string {
 }
 function sanitizeAsset(array $d): array {
     $validStatuses = ['active','retired'];
+    $status   = in_array($d['status'] ?? '', $validStatuses) ? $d['status'] : 'active';
+    // Disposed date only applies to retired assets; default to today when retiring
+    $disposed = $status === 'retired' ? (sanitizeDate($d['disposed_date'] ?? null) ?? date('Y-m-d')) : null;
     return [
         'name'          => trim($d['name'] ?? ''),
         'type'          => trim($d['type'] ?? 'Laptop'),
         'serial'        => trim($d['serial'] ?? ''),
         'assigned_to'   => trim($d['assigned_to'] ?? ''),
         'department'    => trim($d['department'] ?? ''),
-        'status'        => in_array($d['status'] ?? '', $validStatuses) ? $d['status'] : 'active',
+        'status'        => $status,
         'purchase_date' => sanitizeDate($d['purchase_date'] ?? null),
         'end_of_life'   => sanitizeDate($d['end_of_life']   ?? null),
+        'disposed_date' => $disposed,
         'cost'          => isset($d['cost']) && $d['cost'] !== '' ? (float)$d['cost'] : null,
         'notes'         => trim($d['notes'] ?? ''),
         'eol_override'  => isset($d['eol_override']) ? (int)(bool)$d['eol_override'] : 0,
@@ -69,6 +73,7 @@ function rowToAsset(array $r): array {
         'assignedTo'  => $r['assigned_to'], 'dept'        => $r['department'],
         'status'      => $r['status'] ?? 'active',
         'purchaseDate'=> $r['purchase_date'], 'endOfLife' => $r['end_of_life'],
+        'disposedDate'=> $r['disposed_date'] ?? null,
         'eolOverride' => !empty($r['eol_override']),
         'archived'    => !empty($r['archived']),
         'archivedAt'  => $r['archived_at'] ?? null,
@@ -77,14 +82,10 @@ function rowToAsset(array $r): array {
     ];
 }
 function writeLog(PDO $db, string $assetId, string $assetName, string $action, array $changed, string $actor): void {
-    $ip = null;
-    foreach (['HTTP_CF_CONNECTING_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k)
-        if (!empty($_SERVER[$k])) { $ip = trim(explode(',', $_SERVER[$k])[0]); break; }
-    $db->prepare("INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by,ip_address) VALUES (?,?,?,?,?,?)")
-       ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor, $ip]);
+    auditLog($db, $assetId, $assetName, $action, $changed, $actor);
 }
 function diffFields(array $old, array $new): array {
-    $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost','notes','eol_override'];
+    $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','disposed_date','cost','notes','eol_override'];
     $changed = [];
     foreach ($track as $f) {
         $ov = (string)($old[$f] ?? '');
@@ -220,7 +221,7 @@ if ($method === 'GET') {
         if (empty($_GET['show_retired'])) $where[]="COALESCE(status,'active')!='retired'";
     }
     $order = 'created_at DESC';
-    $allowed = ['id','name','type','serial','assigned_to','purchase_date','end_of_life','cost'];
+    $allowed = ['id','name','type','serial','assigned_to','purchase_date','end_of_life','disposed_date','cost'];
     if (!empty($_GET['sort']) && in_array($_GET['sort'],$allowed)) {
         $order = $_GET['sort'].' '.(($_GET['dir']??'asc')==='desc'?'DESC':'ASC');
     }
@@ -241,10 +242,10 @@ if ($method === 'POST') {
         $id = nextId($db, $d['type']??'');
     }
     $s = sanitizeAsset($d);
-    $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
+    $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,disposed_date,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:disposed_date,:cost,:notes,:eol_override)")
        ->execute(array_merge(['id'=>$id],$s));
     $initVals = [];
-    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','disposed_date','cost'] as $f)
         if (isset($s[$f]) && $s[$f] !== '' && $s[$f] !== null) $initVals[$f] = ['from' => null, 'to' => $s[$f]];
     writeLog($db,$id,$s['name'],'created',$initVals,$actor);
     $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$id]);
@@ -273,6 +274,23 @@ if ($method === 'PUT' && isset($_GET['restore'])) {
     respond(rowToAsset($sel->fetch()));
 }
 
+// PUT — retire (soft delete: keeps the asset, moves it to the Retired list)
+if ($method === 'PUT' && isset($_GET['retire'])) {
+    $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$d['id']]);
+    $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
+    if (($row['status'] ?? 'active') !== 'retired') {
+        $disposed = sanitizeDate($d['disposed_date'] ?? null) ?? date('Y-m-d');
+        $db->prepare("UPDATE assets SET status='retired', disposed_date=? WHERE id=?")->execute([$disposed, $d['id']]);
+        writeLog($db,$d['id'],$row['name'],'retired',[
+            'status'        => ['from'=>$row['status'] ?? 'active','to'=>'retired'],
+            'disposed_date' => ['from'=>$row['disposed_date'] ?? null,'to'=>$disposed],
+        ],$actor);
+    }
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
+}
+
 // PUT — update
 if ($method === 'PUT') {
     $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
@@ -294,8 +312,11 @@ if ($method === 'PUT') {
             $workingId = $newId;
         }
     }
+    // Preserve an existing disposed date when the client didn't send one
+    if (($d['status'] ?? '') === 'retired' && !isset($d['disposed_date']) && !empty($old['disposed_date']))
+        $d['disposed_date'] = $old['disposed_date'];
     $s = sanitizeAsset($d); $diff = diffFields($old,$s);
-    $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
+    $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,disposed_date=:disposed_date,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
        ->execute(array_merge(['id'=>$workingId],$s));
     if (!empty($diff)) writeLog($db,$workingId,$s['name'],'updated',$diff,$actor);
     $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$workingId]);
@@ -307,7 +328,7 @@ if ($method === 'DELETE' && isset($_GET['id'])) {
     $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$_GET['id']]);
     $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
     $finalVals = [];
-    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','disposed_date','cost'] as $f)
         if (isset($row[$f]) && $row[$f] !== '' && $row[$f] !== null) $finalVals[$f] = ['from' => $row[$f], 'to' => null];
     writeLog($db,$_GET['id'],$row['name'],'deleted',$finalVals,$actor);
     $db->prepare("DELETE FROM assets WHERE id=?")->execute([$_GET['id']]);
