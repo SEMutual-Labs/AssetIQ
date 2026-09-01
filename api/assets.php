@@ -54,8 +54,9 @@ function nextId(PDO $db, string $type = ''): string {
     // REGEXP ensures a digit immediately follows the prefix, preventing e.g.
     // 'SEM-P' from matching printer IDs like 'SEM-PR01'.
     // Camera also matches legacy 'SEM-CAM01' (no dash) so old assets count correctly.
+    // Only active assets are counted so retired/old assets don't push the counter up.
     $pattern = strtolower($type) === 'camera' ? '^SEM-CAM-?[0-9]' : '^' . $prefix . '[0-9]';
-    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ?");
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ? AND status != 'retired'");
     $stmt->execute([$pattern]);
     $max = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
