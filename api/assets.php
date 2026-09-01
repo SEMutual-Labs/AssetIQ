@@ -1,0 +1,317 @@
+<?php
+// AssetIQ REST API — with audit log + archive support
+
+header('Content-Type: application/json');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
+
+require_once __DIR__ . '/../db.php';
+require_once __DIR__ . '/../auth/auth.php';
+auth_require_json();
+send_cors_headers('GET, POST, PUT, DELETE, OPTIONS');
+
+$method = $_SERVER['REQUEST_METHOD'];
+$db     = getDB();
+$user   = auth_user();
+$actor  = $user['name'] ?? $user['email'] ?? 'Unknown';
+
+// Helpers
+function respond(mixed $data, int $code = 200): void {
+    http_response_code($code); echo json_encode($data); exit;
+}
+function bodyJson(): array {
+    return json_decode(file_get_contents('php://input'), true) ?? [];
+}
+function sanitizeDate(?string $val): ?string {
+    if (empty($val)) return null;
+    $d = DateTimeImmutable::createFromFormat('Y-m-d', trim($val));
+    return ($d && $d->format('Y-m-d') === trim($val)) ? trim($val) : null;
+}
+function sanitizeAsset(array $d): array {
+    $validStatuses = ['active','retired'];
+    return [
+        'name'          => trim($d['name'] ?? ''),
+        'type'          => trim($d['type'] ?? 'Laptop'),
+        'serial'        => trim($d['serial'] ?? ''),
+        'assigned_to'   => trim($d['assigned_to'] ?? ''),
+        'department'    => trim($d['department'] ?? ''),
+        'status'        => in_array($d['status'] ?? '', $validStatuses) ? $d['status'] : 'active',
+        'purchase_date' => sanitizeDate($d['purchase_date'] ?? null),
+        'end_of_life'   => sanitizeDate($d['end_of_life']   ?? null),
+        'cost'          => isset($d['cost']) && $d['cost'] !== '' ? (float)$d['cost'] : null,
+        'notes'         => trim($d['notes'] ?? ''),
+        'eol_override'  => isset($d['eol_override']) ? (int)(bool)$d['eol_override'] : 0,
+    ];
+}
+function validateAssetId(string $id): bool {
+    return strlen($id) >= 1 && strlen($id) <= 20 && (bool)preg_match('/^[A-Za-z0-9\-_]+$/', $id);
+}
+function nextId(PDO $db, string $type = ''): string {
+    $prefix = match(strtolower($type)) {
+        'laptop' => 'SEM-NB', 'desktop' => 'SEM-PC', 'monitor' => 'SEM-M',
+        'docking station' => 'SEM-D', 'printer' => 'SEM-PR', 'camera' => 'SEM-CAM-',
+        default => 'SEM-P',
+    };
+    // REGEXP ensures a digit immediately follows the prefix, preventing e.g.
+    // 'SEM-P' from matching printer IDs like 'SEM-PR01'.
+    // Camera also matches legacy 'SEM-CAM01' (no dash) so old assets count correctly.
+    $pattern = strtolower($type) === 'camera' ? '^SEM-CAM-?[0-9]' : '^' . $prefix . '[0-9]';
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ?");
+    $stmt->execute([$pattern]);
+    $max = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
+        if (preg_match('/(\d+)$/', $id, $m)) $max = max($max, (int)$m[1]);
+    return $prefix . str_pad($max + 1, 2, '0', STR_PAD_LEFT);
+}
+function rowToAsset(array $r): array {
+    return [
+        'id'          => $r['id'],         'name'        => $r['name'],
+        'type'        => $r['type'],        'serial'      => $r['serial'],
+        'assignedTo'  => $r['assigned_to'], 'dept'        => $r['department'],
+        'status'      => $r['status'] ?? 'active',
+        'purchaseDate'=> $r['purchase_date'], 'endOfLife' => $r['end_of_life'],
+        'eolOverride' => !empty($r['eol_override']),
+        'archived'    => !empty($r['archived']),
+        'archivedAt'  => $r['archived_at'] ?? null,
+        'cost'        => $r['cost'],        'notes'       => $r['notes'],
+        'createdAt'   => $r['created_at'],  'updatedAt'   => $r['updated_at'],
+    ];
+}
+function writeLog(PDO $db, string $assetId, string $assetName, string $action, array $changed, string $actor): void {
+    $ip = null;
+    foreach (['HTTP_CF_CONNECTING_IP','HTTP_X_FORWARDED_FOR','REMOTE_ADDR'] as $k)
+        if (!empty($_SERVER[$k])) { $ip = trim(explode(',', $_SERVER[$k])[0]); break; }
+    $db->prepare("INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by,ip_address) VALUES (?,?,?,?,?,?)")
+       ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor, $ip]);
+}
+function diffFields(array $old, array $new): array {
+    $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost','notes','eol_override'];
+    $changed = [];
+    foreach ($track as $f) {
+        $ov = (string)($old[$f] ?? '');
+        $nv = (string)($new[$f] ?? '');
+        if ($ov !== $nv) $changed[$f] = ['from' => $old[$f] ?? null, 'to' => $new[$f] ?? null];
+    }
+    return $changed;
+}
+
+// Routes
+
+// Audit log
+if ($method === 'GET' && isset($_GET['logs'])) {
+    $where = ['1=1']; $params = [];
+    if (!empty($_GET['id']))        { $where[] = 'asset_id = ?';              $params[] = $_GET['id']; }
+    if (!empty($_GET['action']))    { $where[] = 'action = ?';                $params[] = $_GET['action']; }
+    if (!empty($_GET['actor']))     { $where[] = 'performed_by LIKE ?';       $params[] = '%'.$_GET['actor'].'%'; }
+    if (!empty($_GET['from_date'])) { $where[] = 'DATE(created_at) >= ?';     $params[] = $_GET['from_date']; }
+    if (!empty($_GET['to_date']))   { $where[] = 'DATE(created_at) <= ?';     $params[] = $_GET['to_date']; }
+    $limit  = min((int)($_GET['limit'] ?? 50), 500);
+    $offset = (int)($_GET['offset'] ?? 0);
+
+    // CSV export
+    if (isset($_GET['csv'])) {
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="AssetIQ_Audit_'.date('Y-m-d').'.csv"');
+        header('Cache-Control: no-cache'); echo "\xEF\xBB\xBF";
+        $all = $db->prepare("SELECT * FROM asset_logs WHERE ".implode(' AND ',$where)." ORDER BY created_at DESC");
+        $all->execute($params);
+        $out = fopen('php://output','w');
+        fputcsv($out, ['Log ID','Asset ID','Asset Name','Action','Changed Fields','Performed By','IP Address','Timestamp']);
+        foreach ($all->fetchAll() as $r) {
+            $cf = $r['changed_fields'] ? json_decode($r['changed_fields'], true) : [];
+            $cfText = '';
+            if (is_array($cf)) {
+                $parts = [];
+                foreach ($cf as $field => $val) {
+                    if (is_array($val) && isset($val['from'])) $parts[] = "$field: \"{$val['from']}\" → \"{$val['to']}\"";
+                    elseif (is_array($val) && isset($val['to'])) $parts[] = "$field: \"{$val['to']}\"";
+                    elseif (is_string($field) && is_string($val)) $parts[] = $val;
+                    else $parts[] = $field;
+                }
+                $cfText = implode('; ', $parts);
+            }
+            fputcsv($out, [$r['id'],$r['asset_id'],$r['asset_name'],$r['action'],$cfText,$r['performed_by'],$r['ip_address']??'',$r['created_at']]);
+        }
+        fclose($out); exit;
+    }
+
+    $rows = $db->prepare("SELECT * FROM asset_logs WHERE ".implode(' AND ',$where)." ORDER BY created_at DESC LIMIT $limit OFFSET $offset");
+    $rows->execute($params); $rows = $rows->fetchAll();
+    $cstmt = $db->prepare("SELECT COUNT(*) FROM asset_logs WHERE ".implode(' AND ',$where));
+    $cstmt->execute($params); $total = (int)$cstmt->fetchColumn();
+    respond(['logs' => array_map(fn($r)=>[
+        'id'=>$r['id'],'assetId'=>$r['asset_id'],'assetName'=>$r['asset_name'],
+        'action'=>$r['action'],'changedFields'=>$r['changed_fields']?json_decode($r['changed_fields'],true):[],
+        'performedBy'=>$r['performed_by'],'ipAddress'=>$r['ip_address']??null,'createdAt'=>$r['created_at'],
+    ], $rows), 'total'=>$total]);
+}
+
+// Stats
+if ($method === 'GET' && isset($_GET['stats'])) {
+    $base   = "COALESCE(archived,0)=0";
+    $active = "$base AND COALESCE(status,'active')!='retired'";
+    $dateFilter = '';
+    $params     = [];
+    if (!empty($_GET['purchased_after'])) {
+        $dateFilter .= " AND purchase_date >= ?";
+        $params[]    = $_GET['purchased_after'];
+    }
+    if (!empty($_GET['purchased_before'])) {
+        $dateFilter .= " AND purchase_date <= ?";
+        $params[]    = $_GET['purchased_before'];
+    }
+    $af = $active . $dateFilter;
+    $bf = $base   . $dateFilter;
+    $run = function(string $sql) use ($db, $params) {
+        $s = $db->prepare($sql); $s->execute($params); return $s->fetchColumn();
+    };
+    $typeStmt = $db->prepare("SELECT type,COUNT(*) cnt FROM assets WHERE $af GROUP BY type");
+    $typeStmt->execute($params);
+    respond([
+        'total'      => (int)$run("SELECT COUNT(*) FROM assets WHERE $af"),
+        'retired'    => (int)$run("SELECT COUNT(*) FROM assets WHERE $bf AND COALESCE(status,'active')='retired'"),
+        'assigned'   => (int)$run("SELECT COUNT(*) FROM assets WHERE assigned_to!='' AND assigned_to IS NOT NULL AND $af"),
+        'unassigned' => (int)$run("SELECT COUNT(*) FROM assets WHERE (assigned_to='' OR assigned_to IS NULL) AND $af"),
+        'totalCost'  => (float)$run("SELECT COALESCE(SUM(cost),0) FROM assets WHERE $af"),
+        'archived'   => (int)$db->query("SELECT COUNT(*) FROM assets WHERE COALESCE(archived,0)=1")->fetchColumn(),
+        'byType'     => array_column($typeStmt->fetchAll(), 'cnt', 'type'),
+    ]);
+}
+
+// Archived list
+if ($method === 'GET' && isset($_GET['archived'])) {
+    $where = ['COALESCE(archived,0)=1']; $params = [];
+    if (!empty($_GET['q'])) {
+        $where[] = "(name LIKE ? OR serial LIKE ? OR assigned_to LIKE ? OR id LIKE ?)";
+        $q = '%'.$_GET['q'].'%'; $params = [$q,$q,$q,$q];
+    }
+    $stmt = $db->prepare("SELECT * FROM assets WHERE ".implode(' AND ',$where)." ORDER BY archived_at DESC");
+    $stmt->execute($params);
+    respond(array_map('rowToAsset', $stmt->fetchAll()));
+}
+
+// GET next available ID for a type
+if ($method === 'GET' && isset($_GET['next_id'])) {
+    respond(['id' => nextId($db, $_GET['type'] ?? '')]);
+}
+
+// GET single
+if ($method === 'GET' && isset($_GET['id'])) {
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$_GET['id']]);
+    $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
+    respond(rowToAsset($row));
+}
+
+// GET all
+if ($method === 'GET') {
+    $where = ['COALESCE(archived,0)=0']; $params = [];
+    if (!empty($_GET['q'])) {
+        $where[] = "(name LIKE ? OR serial LIKE ? OR assigned_to LIKE ? OR department LIKE ? OR id LIKE ?)";
+        $q = '%'.$_GET['q'].'%'; $params = array_merge($params,[$q,$q,$q,$q,$q]);
+    }
+    if (!empty($_GET['type'])) { $where[] = "type=?"; $params[] = $_GET['type']; }
+    if (!empty($_GET['dept'])) { $where[] = "department=?"; $params[] = $_GET['dept']; }
+    if (!empty($_GET['status'])) {
+        if     ($_GET['status']==='assigned')   $where[]="assigned_to!='' AND assigned_to IS NOT NULL AND COALESCE(status,'active')!='retired'";
+        elseif ($_GET['status']==='unassigned') $where[]="(assigned_to='' OR assigned_to IS NULL) AND COALESCE(status,'active')!='retired'";
+        elseif ($_GET['status']==='retired')    $where[]="COALESCE(status,'active')='retired'";
+        elseif ($_GET['status']==='eol')        $where[]="end_of_life IS NOT NULL AND end_of_life<=DATE_ADD(CURDATE(),INTERVAL 12 MONTH) AND COALESCE(status,'active')!='retired'";
+        else                                    $where[]="COALESCE(status,'active')!='retired'";
+    } else {
+        if (empty($_GET['show_retired'])) $where[]="COALESCE(status,'active')!='retired'";
+    }
+    $order = 'created_at DESC';
+    $allowed = ['id','name','type','serial','assigned_to','purchase_date','end_of_life','cost'];
+    if (!empty($_GET['sort']) && in_array($_GET['sort'],$allowed)) {
+        $order = $_GET['sort'].' '.(($_GET['dir']??'asc')==='desc'?'DESC':'ASC');
+    }
+    $stmt = $db->prepare("SELECT * FROM assets WHERE ".implode(' AND ',$where)." ORDER BY $order");
+    $stmt->execute($params);
+    respond(array_map('rowToAsset',$stmt->fetchAll()));
+}
+
+// POST — create
+if ($method === 'POST') {
+    $d = bodyJson(); if (empty($d['name'])) respond(['error'=>'name is required'],422);
+    if (!empty($d['custom_id'])) {
+        $id = trim($d['custom_id']);
+        if (!validateAssetId($id)) respond(['error'=>'Invalid asset number. Use letters, numbers, and hyphens only (max 20 chars).'],422);
+        $chkId = $db->prepare("SELECT id FROM assets WHERE id=?"); $chkId->execute([$id]);
+        if ($chkId->fetch()) respond(['error'=>'Asset number already exists.'],409);
+    } else {
+        $id = nextId($db, $d['type']??'');
+    }
+    $s = sanitizeAsset($d);
+    $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
+       ->execute(array_merge(['id'=>$id],$s));
+    $initVals = [];
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+        if (isset($s[$f]) && $s[$f] !== '' && $s[$f] !== null) $initVals[$f] = ['from' => null, 'to' => $s[$f]];
+    writeLog($db,$id,$s['name'],'created',$initVals,$actor);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$id]);
+    respond(rowToAsset($sel->fetch()),201);
+}
+
+// PUT — archive
+if ($method === 'PUT' && isset($_GET['archive'])) {
+    $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$d['id']]);
+    $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
+    $db->prepare("UPDATE assets SET archived=1,archived_at=NOW() WHERE id=?")->execute([$d['id']]);
+    writeLog($db,$d['id'],$row['name'],'archived',[],$actor);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
+}
+
+// PUT — restore
+if ($method === 'PUT' && isset($_GET['restore'])) {
+    $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$d['id']]);
+    $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
+    $db->prepare("UPDATE assets SET archived=0,archived_at=NULL WHERE id=?")->execute([$d['id']]);
+    writeLog($db,$d['id'],$row['name'],'restored',[],$actor);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$d['id']]);
+    respond(rowToAsset($sel->fetch()));
+}
+
+// PUT — update
+if ($method === 'PUT') {
+    $d = bodyJson(); if (empty($d['id'])) respond(['error'=>'id required'],422);
+    $chk = $db->prepare("SELECT * FROM assets WHERE id=?"); $chk->execute([$d['id']]);
+    $old = $chk->fetch(); if (!$old) respond(['error'=>'Not found'],404);
+    $workingId = $d['id'];
+    if (!empty($d['new_id'])) {
+        $newId = trim($d['new_id']);
+        if ($newId !== $workingId) {
+            if (!validateAssetId($newId)) respond(['error'=>'Invalid asset number. Use letters, numbers, and hyphens only (max 20 chars).'],422);
+            $chkNew = $db->prepare("SELECT id FROM assets WHERE id=?"); $chkNew->execute([$newId]);
+            if ($chkNew->fetch()) respond(['error'=>'Asset number already in use.'],409);
+            $db->prepare("UPDATE assets SET id=? WHERE id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_logs SET asset_id=? WHERE asset_id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE custom_field_values SET asset_id=? WHERE asset_id=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_links SET asset_id_a=? WHERE asset_id_a=?")->execute([$newId, $workingId]);
+            $db->prepare("UPDATE asset_links SET asset_id_b=? WHERE asset_id_b=?")->execute([$newId, $workingId]);
+            writeLog($db,$newId,$old['name'],'id_changed',['id'=>['from'=>$d['id'],'to'=>$newId]],$actor);
+            $workingId = $newId;
+        }
+    }
+    $s = sanitizeAsset($d); $diff = diffFields($old,$s);
+    $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
+       ->execute(array_merge(['id'=>$workingId],$s));
+    if (!empty($diff)) writeLog($db,$workingId,$s['name'],'updated',$diff,$actor);
+    $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$workingId]);
+    respond(rowToAsset($sel->fetch()));
+}
+
+// DELETE — hard delete
+if ($method === 'DELETE' && isset($_GET['id'])) {
+    $stmt = $db->prepare("SELECT * FROM assets WHERE id=?"); $stmt->execute([$_GET['id']]);
+    $row = $stmt->fetch(); if (!$row) respond(['error'=>'Not found'],404);
+    $finalVals = [];
+    foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
+        if (isset($row[$f]) && $row[$f] !== '' && $row[$f] !== null) $finalVals[$f] = ['from' => $row[$f], 'to' => null];
+    writeLog($db,$_GET['id'],$row['name'],'deleted',$finalVals,$actor);
+    $db->prepare("DELETE FROM assets WHERE id=?")->execute([$_GET['id']]);
+    respond(['deleted'=>$_GET['id']]);
+}
+
+respond(['error'=>'Method not allowed'],405);
