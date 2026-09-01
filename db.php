@@ -1,5 +1,5 @@
 <?php
-require_once '/home/1280766.cloudwaysapps.com/awhfqygezp/private_html/config.php';
+require_once __DIR__ . '/../private_html/config.php';
 
 function getDB(): PDO {
     static $pdo = null;

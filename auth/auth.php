@@ -3,7 +3,7 @@
 //  AssetIQ — Auth Helper
 // ─────────────────────────────────────────────────────────────
 
-require_once '/home/1280766.cloudwaysapps.com/awhfqygezp/private_html/config.php';
+require_once __DIR__ . '/../../private_html/config.php';
 
 function send_security_headers(): void {
     header('X-Content-Type-Options: nosniff');
