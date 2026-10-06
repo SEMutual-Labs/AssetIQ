@@ -559,6 +559,28 @@ select {
 }
 
 /* ── FORM LAYOUT ── */
+#asset-modal { z-index: 400; }
+#asset-modal .modal { display: flex; flex-direction: column; overflow: hidden; }
+#asset-modal .modal-header, #asset-modal .modal-handle, #asset-modal .modal-footer { flex-shrink: 0; }
+#asset-modal .modal-body { min-height: 0; overflow-y: auto; }
+#asset-modal .modal-footer { flex-direction: row; }
+#asset-modal .modal-footer .btn { flex: 1; min-width: 0; }
+#asset-modal #f-cost { min-width: 0; }
+#serial-scanner { position: relative; }
+#serial-scan-target { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid var(--accent);pointer-events:none;z-index:5; }
+#serial-scan-target::after { content:'';position:absolute;left:0;right:0;top:50%;border-top:1px dashed rgba(255,255,255,0.7); }
+.serial-scan-controls { display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px; }
+.serial-scan-controls select { width:auto;flex:1;min-width:120px; }
+#serial-scan-status { padding:0 10px 10px;font-size:12px;color:var(--text2); }
+#serial-scan-candidate { padding:10px;border-top:1px solid var(--border); }
+#serial-scan-value { display:block;overflow-wrap:anywhere;font-family:'JetBrains Mono',monospace;margin-bottom:10px; }
+#serial-scan-help { padding:0 10px 10px;font-size:12px;color:var(--text2); }
+@media (min-width: 768px) {
+  #serial-scan-btn, #serial-scanner-wrap, #scan-btn, .fab-qr { display: none !important; }
+}
+@media (max-width: 480px) {
+  #asset-modal .form-2col { grid-template-columns: minmax(0, 1fr); }
+}
 .form-stack { display: flex; flex-direction: column; gap: 14px; }
 .form-2col  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -664,7 +686,12 @@ select {
   .desktop-nav { display: flex !important; gap: 4px; margin-left: auto; align-items: center; }
   .page { padding: 80px 32px 40px; }
   .page-title { font-size: 26px; }
-  .stats-grid { grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 28px; }
+  .stats-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin-bottom: 28px; }
+  .asset-open-row { cursor: pointer; }
+  .asset-open-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (min-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(6,minmax(0,1fr)); }
+}
   .stat-value { font-size: 30px; }
   .asset-list  { display: none !important; }
   .table-wrap  { display: block !important; }
@@ -1413,10 +1440,6 @@ input[type="checkbox"] {
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Users
     </div>
-    <div class="drawer-nav-item" id="nav-intune" onclick="showPage('intune');closeDrawer()">
-      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-      Intune
-    </div>
     <div class="drawer-nav-item" id="nav-settings" onclick="showPage('settings');closeDrawer()" style="position:relative">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -1490,7 +1513,6 @@ input[type="checkbox"] {
   <div class="stats-grid" id="stats-grid">
     <div class="stat-card" style="grid-column:span 2"><div class="spinner"></div></div>
   </div>
-  <div id="eol-banner-dash"></div>
   <div class="section-label">Recent Assets</div>
   <div class="asset-list" id="recent-list"><div class="spinner"></div></div>
   <div class="table-wrap">
@@ -1525,14 +1547,11 @@ input[type="checkbox"] {
         <option value="unassigned">Unassigned</option>
         <option value="retired">Retired</option>
         <option value="eol">End of Life</option>
+        <option value="overdue">Past End of Life</option>
       </select>
       <button class="btn btn-ghost" onclick="exportAssetCSV()" style="width:auto;min-width:auto;padding:12px 14px;min-height:44px;flex-shrink:0">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         CSV
-      </button>
-      <button class="btn btn-ghost" onclick="exportADP(this)" style="width:auto;min-width:auto;padding:12px 14px;min-height:44px;flex-shrink:0;border-color:rgba(0,229,255,0.3);color:var(--accent)">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        ADP Export
       </button>
       <button class="select-all-btn" id="batch-toggle-btn" onclick="toggleBatchMode()">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -1621,6 +1640,7 @@ input[type="checkbox"] {
       <div class="form-stack">
         <div class="form-group full" style="position:relative">
           <label class="form-label">Asset Name / Model *</label>
+          <button type="button" class="btn btn-ghost" id="copy-existing-btn" onclick="showNameSuggestions('', true)" style="width:auto;min-height:32px;padding:4px 10px;margin-bottom:8px">Copy Existing</button>
           <input type="text" id="f-name" placeholder="e.g. Dell XPS 15 9530" autocomplete="off" oninput="onNameInput(this.value)" onblur="setTimeout(()=>{const s=document.getElementById('name-suggestions');if(s)s.style.display='none'},150)">
           <div id="name-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,0.25)"></div>
         </div>
@@ -1631,14 +1651,15 @@ input[type="checkbox"] {
           </div>
           <div class="form-group">
             <label class="form-label">Type</label>
-            <select id="f-type" onchange="loadCustomFieldsForModal(this.value, editingId);if(!editingId)autoFillAssetId()">
+            <select id="f-type" onchange="loadCustomFieldsForModal(this.value, editingId);syncLaptopEntryMode();if(!editingId)autoFillAssetId()">
               <option>Laptop</option>
+              <option>Desktop</option>
               <option>Monitor</option><option>Peripheral</option>
               <option>Docking Station</option>
               <option>Printer</option><option>Camera</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="single-serial-group">
             <label class="form-label">Serial Number</label>
             <div style="display:flex;gap:6px">
               <input type="text" id="f-serial" placeholder="SN-XXXX" autocomplete="off" oninput="checkSerialDuplicate(this.value)" style="flex:1;min-width:0">
@@ -1648,7 +1669,27 @@ input[type="checkbox"] {
             </div>
             <div id="serial-scanner-wrap" style="display:none;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid var(--border2)">
               <div id="serial-scanner"></div>
-              <div class="scan-line"></div>
+              <div class="serial-scan-controls">
+                <select id="serial-scan-mode" aria-label="Barcode type" onchange="restartSerialScanner()" title="Linear targets exclude nearby QR and Data Matrix codes. Select 2D for a square serial label.">
+                  <option value="linear">Linear Barcode</option>
+                  <option value="matrix">2D Code</option>
+                </select>
+                <button type="button" class="btn btn-ghost" onclick="toggleSerialScanHelp()" aria-label="Scan troubleshooting" aria-expanded="false" id="serial-help-btn" title="No readable code: check focus, glare, the complete barcode and its blank margins. The scanner cannot identify which code is a serial." style="width:36px;min-height:36px;padding:0">?</button>
+                <button type="button" class="btn btn-ghost" onclick="stopSerialScanner()" title="Stop camera" style="width:auto;min-height:36px;padding:4px 8px">Stop</button>
+              </div>
+              <div id="serial-scan-status" role="status" aria-live="polite">Camera stopped</div>
+              <div id="serial-scan-help" hidden>Only the outlined area is decoded. Keep the entire serial barcode and its blank side margins inside it, with neighboring codes outside. If no code is readable, move back to let the camera focus, steady the label, and tilt it to reduce glare. Use 2D Code for QR or Data Matrix labels. Compare the captured value with the printed serial before using it.</div>
+              <div class="serial-scan-controls" id="serial-zoom-control" hidden style="display:none">
+                <label for="serial-zoom">Zoom</label>
+                <input type="range" id="serial-zoom" aria-label="Camera zoom" onchange="setSerialCameraZoom(this.value)" style="flex:1;min-width:0" title="Camera zoom is available only on supported cameras. Too much zoom can reduce readability.">
+              </div>
+              <div id="serial-scan-candidate" hidden>
+                <output id="serial-scan-value"></output>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="btn btn-primary" onclick="acceptSerialScan()">Use Serial</button>
+                  <button type="button" class="btn btn-ghost" onclick="retrySerialScan()">Scan Again</button>
+                </div>
+              </div>
             </div>
             <div id="serial-dupe-warn" style="display:none;margin-top:5px;padding:7px 10px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.25);border-radius:7px;font-size:12px;font-weight:600;color:var(--amber);align-items:center;gap:7px">
               <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1696,6 +1737,17 @@ input[type="checkbox"] {
             </div>
             <div id="ai-price-result" style="display:none;margin-top:8px;padding:10px 12px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);border-radius:8px;font-size:12px;line-height:1.5"></div>
           </div>
+        </div>
+        <div class="form-group full" id="laptop-entry-mode">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="f-multiple" onchange="syncLaptopEntryMode()" style="width:18px;height:18px;appearance:auto;flex-shrink:0">
+            <span class="form-label" style="margin:0">Multiple Laptops</span>
+          </label>
+        </div>
+        <div class="form-group full" id="batch-serial-group" style="display:none">
+          <label class="form-label" for="f-serials">Serial Numbers *</label>
+          <textarea id="f-serials" rows="5" placeholder="SN-001&#10;SN-002&#10;SN-003" oninput="updateLaptopBatchCount()" style="font-family:'JetBrains Mono',monospace;resize:vertical"></textarea>
+          <div id="batch-entry-status" role="status" aria-live="polite" style="margin-top:6px;font-size:12px;color:var(--muted)">0 laptops</div>
         </div>
         <div class="form-group full">
           <label class="form-label">Notes</label>
@@ -1776,62 +1828,6 @@ input[type="checkbox"] {
   </div>
 </div>
 
-<!-- INTUNE SYNC PAGE -->
-<div class="page" id="page-intune">
-  <div class="page-title">Intune Sync</div>
-  <div class="page-sub">Import devices directly from Microsoft Intune</div>
-
-  <!-- Unconfigured state -->
-  <div id="intune-unconfigured" style="display:none">
-    <div class="intune-setup-card">
-      <div class="intune-setup-icon">
-        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-      </div>
-      <h3>Connect to Microsoft Intune</h3>
-      <p>Add your Azure App Registration credentials to <code>config.php</code> to enable Intune sync.</p>
-      <div class="setup-steps">
-        <div class="setup-step"><span class="step-num">1</span><div><strong>Register an app</strong> in Azure Portal → Entra ID → App registrations → New registration</div></div>
-        <div class="setup-step"><span class="step-num">2</span><div><strong>Add API permission:</strong> Microsoft Graph → Application → <code>DeviceManagementManagedDevices.Read.All</code> → Grant admin consent</div></div>
-        <div class="setup-step"><span class="step-num">3</span><div><strong>Create a client secret</strong> under Certificates &amp; secrets and copy the value</div></div>
-        <div class="setup-step"><span class="step-num">4</span><div><strong>Edit config.php</strong> and fill in <code>INTUNE_TENANT_ID</code>, <code>INTUNE_CLIENT_ID</code>, <code>INTUNE_CLIENT_SECRET</code></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Configured state -->
-  <div id="intune-configured">
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-primary" id="intune-fetch-btn" onclick="intuneFetch()" style="width:auto;min-width:160px">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        Fetch from Intune
-      </button>
-      <button class="btn btn-ghost" onclick="intuneTestConnection()" style="width:auto">Test Connection</button>
-      <div id="intune-status" style="font-size:13px;color:var(--muted)"></div>
-    </div>
-
-    <!-- Filter bar -->
-    <div id="intune-filter-bar" style="display:none;margin-bottom:14px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <div class="search-wrap" style="flex:1;min-width:200px">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="intune-search" placeholder="Search devices…" oninput="renderIntuneDevices()">
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap">
-          <input type="checkbox" id="intune-hide-existing" onchange="renderIntuneDevices()" style="width:auto;padding:0;background:none;border:none"> Hide already imported
-        </label>
-        <button class="btn btn-primary" onclick="intuneImportSelected()" style="width:auto;min-width:140px" id="intune-import-btn">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          Import Selected
-        </button>
-      </div>
-      <div style="margin-top:10px;font-size:12px;color:var(--muted)" id="intune-selection-info"></div>
-    </div>
-
-    <!-- Device list -->
-    <div id="intune-device-list"></div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1892,7 +1888,6 @@ function showPage(name) {
   if(page) page.classList.add('active');
   if(name==='dashboard') { loadDashboard(); checkAlerts(); }
   if(name==='assets')    loadAssets();
-  if(name==='intune') { showPage('settings'); setTimeout(()=>switchSettingsTab('intune'),50); return; }
   if(name==='users')     loadUsers();
   if(name==='activity')  loadActivity();
   if(name==='reports')   loadReports();
@@ -1995,12 +1990,14 @@ async function loadDashboard() {
     document.getElementById('recent-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
     return;
   }
+  const overdue = pastEolAssets(recent).length;
   const cards=[
     {label:'Total Assets', value:stats.total,       sub:stats.assigned+' assigned',  c:'var(--accent)', action:()=>goToAssets({})},
     {label:'Unassigned',   value:stats.unassigned,  sub:'Available now',             c:'var(--orange)', action:()=>goToAssets({status:'unassigned'})},
     {label:'Computers',    value:(stats.byType['Laptop']||0)+(stats.byType['Desktop']||0), sub:'Laptops & desktops', c:'var(--purple)', action:()=>goToAssets({type:'Laptop'})},
     {label:'Retired',      value:stats.retired||0,  sub:'Decommissioned',            c:'var(--red)',    action:()=>goToAssets({status:'retired'})},
     {label:'Total Value',  value:'$'+Number(stats.totalCost).toLocaleString('en-US',{maximumFractionDigits:0}), sub:'Inventory cost basis', c:'var(--green)'},
+    {label:'Past End of Life', value:overdue, sub:'Replacement overdue', c:overdue?'var(--red)':'var(--green)', action:()=>goToAssets({status:'overdue'})},
   ];
   document.getElementById('stats-grid').innerHTML=cards.map((card,i)=>
     `<div class="stat-card${card.action?' clickable':''}" style="--c:${card.c}" ${card.action?`onclick="statCardActions[${i}]()"`:''}>
@@ -2011,22 +2008,10 @@ async function loadDashboard() {
     </div>`).join('');
   window.statCardActions = cards.map(card=>card.action||null);
 
-  // EOL banner
-  const expiringSoon = recent.filter(a => a.status !== 'retired' && eolStatus(a.endOfLife) !== null);
-  const critical     = expiringSoon.filter(a => eolStatus(a.endOfLife) === 'critical');
-  const banner = document.getElementById('eol-banner-dash');
-  if (critical.length) {
-    banner.innerHTML = `<div class="eol-banner" onclick="goToAssets({status:'eol'})" style="cursor:pointer"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg> ${critical.length} asset${critical.length>1?'s':''} past end of life — replacement overdue <span style="font-weight:700;opacity:0.7;margin-left:4px">View →</span></div>`;
-  } else if (expiringSoon.length) {
-    banner.innerHTML = `<div class="eol-banner warn" onclick="goToAssets({status:'eol'})" style="cursor:pointer"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg> ${expiringSoon.length} asset${expiringSoon.length>1?'s':''} approaching end of life <span style="font-weight:700;opacity:0.7;margin-left:4px">View →</span></div>`;
-  } else {
-    banner.innerHTML = '';
-  }
-
   await prefetchCustomFields(recent);
   const slice=recent.slice(0,6);
   document.getElementById('recent-list').innerHTML=slice.length?slice.map(a=>assetCard(a)).join(''):'<div class="empty-state"><h3>No assets yet</h3><p>Tap Add to get started.</p></div>';
-  document.getElementById('recent-tbody').innerHTML=slice.length?slice.map(a=>`<tr>
+  document.getElementById('recent-tbody').innerHTML=slice.length?slice.map(a=>`<tr class="asset-open-row" tabindex="0" aria-label="${esc('Open ' + a.name)}" onclick="openAssetRow(event,${jsArg(a.id)})" onkeydown="openAssetRow(event,${jsArg(a.id)})">
     <td class="font-mono">${esc(a.id)}</td><td style="font-weight:600">${esc(a.name)}</td>
     <td>${typeBadge(a.type)}</td>
     <td>${a.assignedTo?esc(a.assignedTo):'<span style="color:var(--muted)">—</span>'}</td>
@@ -2047,6 +2032,7 @@ async function loadAssets() {
   let assets;
   try {
     assets = await apiFetch(API+'?'+p.toString());
+    if (fs === 'overdue') assets = pastEolAssets(assets);
   } catch(e) {
     document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
     document.getElementById('assets-tbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
@@ -2062,7 +2048,7 @@ async function loadAssets() {
   cachedAssets = assets;
   document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a)).join('');
   document.getElementById('assets-tbody').innerHTML=assets.map(a=>`
-    <tr id="trow-${esc(a.id)}" style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
+    <tr id="trow-${esc(a.id)}" class="asset-open-row" tabindex="0" aria-label="${esc('Open ' + a.name)}" onclick="openAssetRow(event,${jsArg(a.id)},true)" onkeydown="openAssetRow(event,${jsArg(a.id)},true)" style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
       <td style="padding:12px 8px 12px 16px;cursor:pointer" onclick="toggleCardSelect('${esc(a.id)}',event)"><div class="tbl-cb"></div></td>
       <td class="font-mono">${esc(a.id)}</td>
       <td><div style="font-weight:600">${esc(a.name)}</div>${a.dept?`<div style="font-size:11px;color:var(--muted)">${esc(a.dept)}</div>`:''}</td>
@@ -2080,6 +2066,20 @@ async function loadAssets() {
     </tr>`).join('');
 }
 
+
+function pastEolAssets(assets, today = new Date()) {
+  const date = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
+  return assets.filter(asset => asset.status !== 'retired' && !asset.archived && /^\d{4}-\d{2}-\d{2}$/.test(asset.endOfLife || '') && asset.endOfLife < date);
+}
+
+function openAssetRow(event, id, selectable = false) {
+  if (window.matchMedia('(max-width: 767px)').matches) return;
+  if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;
+  if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+  if (event.type === 'keydown') event.preventDefault();
+  if (selectable && batchMode) toggleCardSelect(id, event);
+  else editAsset(id).catch(() => {});
+}
 
 function assetCard(a) {
   const flag    = eolFlag(a.endOfLife);
@@ -3025,29 +3025,6 @@ function closeDrawer() {
   },{passive:true});
 })();
 
-// ── Settings Tabs ─────────────────────────────────────────────────────────────
-function switchSettingsTab(tab) {
-  document.getElementById('settings-tab-general').style.display = tab==='general' ? '' : 'none';
-  document.getElementById('settings-tab-intune').style.display  = tab==='intune'  ? '' : 'none';
-  document.querySelectorAll('.settings-tab').forEach(b => {
-    const active = b.id === 'stab-'+tab;
-    b.style.background = active ? 'rgba(0,229,255,0.1)' : 'transparent';
-    b.style.color      = active ? 'var(--accent)' : 'var(--muted)';
-  });
-  if(tab==='intune') {
-    const src   = document.getElementById('page-intune');
-    const mount = document.getElementById('settings-intune-mount');
-    if(src && mount && !mount.contains(src)) {
-      mount.innerHTML = '';
-      mount.appendChild(src);
-      src.style.padding = '0';
-      src.style.display = 'block';
-    }
-    initIntunePage();
-  }
-}
-
-
 // ══════════════════════════════════════════════════════════════════════════════
 // DATE RANGE FILTER
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3259,6 +3236,13 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 function openAddModal(){
   editingId=null;
+  modelSearchVersion++;
+  clearTimeout(nameSuggestTimer);
+  document.getElementById('f-multiple').checked=false;
+  document.getElementById('f-serials').value='';
+  modelInventory = null;
+  document.getElementById('copy-existing-btn').style.display='';
+  document.getElementById('name-suggestions').style.display='none';
   document.getElementById('modal-title').textContent='Add Asset';
   ['f-name','f-serial','f-assigned','f-notes','f-asset-num'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-asset-num-hint').style.display='';
@@ -3274,6 +3258,8 @@ function openAddModal(){
   document.getElementById('serial-dupe-warn').style.display = 'none';
   document.getElementById('save-btn').textContent='Save Asset';
   document.getElementById('asset-modal').classList.add('open');
+  syncLaptopEntryMode();
+  loadCustomFieldsForModal('Laptop', null);
   autoFillAssetId();
   setTimeout(()=>document.getElementById('f-name').focus(),300);
 }
@@ -3281,9 +3267,15 @@ function openAddModal(){
 async function editAsset(id){
   const a=await apiFetch(API+'?id='+encodeURIComponent(id));
   editingId=id;
+  modelSearchVersion++;
+  clearTimeout(nameSuggestTimer);
+  document.getElementById('f-multiple').checked=false;
+  document.getElementById('copy-existing-btn').style.display='none';
+  document.getElementById('name-suggestions').style.display='none';
   document.getElementById('modal-title').textContent='Edit Asset';
   document.getElementById('f-name').value=a.name||'';
   document.getElementById('f-type').value=a.type||'Laptop';
+  syncLaptopEntryMode();
   document.getElementById('f-serial').value=a.serial||'';
   document.getElementById('f-assigned').value=a.assignedTo||'';
   document.getElementById('f-dept').value=a.dept||'';
@@ -3302,41 +3294,76 @@ async function editAsset(id){
 // ── Asset name autocomplete (template from existing) ─────────────────────────
 let nameSuggestions = [];
 let nameSuggestTimer = null;
+let modelInventory = null;
+let modelSearchVersion = 0;
+
+function findModelMatches(assets, query) {
+  const normalize = value => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const needle = normalize(query);
+  const seen = new Set();
+  return assets.filter(asset => {
+    const matches = !needle || [asset.name, asset.id, asset.serial, asset.notes]
+      .some(value => normalize(value).includes(needle));
+    const key = normalize(asset.name) + ':' + asset.type;
+    if (!matches || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function modelTemplate(asset) {
+  return { name: asset.name || '', type: asset.type || 'Laptop', cost: asset.cost ?? '', notes: asset.notes || '' };
+}
 
 function onNameInput(val) {
   if (editingId) return;
+  modelSearchVersion++;
   clearTimeout(nameSuggestTimer);
   nameSuggestTimer = setTimeout(() => showNameSuggestions(val.trim()), 200);
 }
 
-function showNameSuggestions(val) {
+async function showNameSuggestions(val, browse = false) {
   const suggs = document.getElementById('name-suggestions');
-  if (!suggs) return;
-  if (!val || val.length < 2) { suggs.style.display = 'none'; return; }
-  const assets = cachedAssets.length ? cachedAssets : [];
-  const seen = new Set();
-  const matches = assets
-    .filter(a => a.name.toLowerCase().includes(val.toLowerCase()))
-    .filter(a => { if (seen.has(a.name)) return false; seen.add(a.name); return true; });
-  if (!matches.length) { suggs.style.display = 'none'; return; }
-  nameSuggestions = matches.slice(0, 8);
-  const currentType = document.getElementById('f-type').value;
+  if (!suggs || editingId) return;
+  const version = ++modelSearchVersion;
+  if (!browse && !val.trim()) { suggs.style.display = 'none'; return; }
+  suggs.style.display = '';
+  suggs.textContent = 'Loading models...';
+  try {
+    const assets = modelInventory || await apiFetch(API + '?show_retired=1&sort=created_at&dir=desc');
+    if (version !== modelSearchVersion || editingId || !document.getElementById('asset-modal').classList.contains('open')) return;
+    modelInventory = assets;
+    nameSuggestions = findModelMatches(assets, val).slice(0, 30);
+  } catch(error) {
+    if (version === modelSearchVersion) suggs.textContent = 'Models could not be loaded.';
+    return;
+  }
+  if (!nameSuggestions.length) { suggs.textContent = 'No matching models'; return; }
   suggs.innerHTML = nameSuggestions.map((a, i) => `
-    <div class="name-sugg-item" onmousedown="applyTemplate(${i})">
+    <button type="button" class="name-sugg-item" onclick="applyTemplate(${i})" onmousedown="event.preventDefault()" style="width:100%;border:0;background:transparent;color:var(--text);text-align:left;font:inherit">
       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</span>
       <span class="badge ${T[a.type]||'badge-type'}" style="font-size:10px;padding:1px 8px;flex-shrink:0">${esc(a.type)}</span>
-    </div>`).join('');
+    </button>`).join('');
+  suggs.style.maxHeight = '240px';
+  suggs.style.overflowY = 'auto';
   suggs.style.display = '';
 }
 
 function applyTemplate(idx) {
   const a = nameSuggestions[idx];
-  if (!a) return;
-  document.getElementById('f-name').value = a.name;
-  document.getElementById('f-type').value = a.type;
+  if (!a || editingId) return;
+  modelSearchVersion++;
+  const template = modelTemplate(a);
+  for (const [key, value] of Object.entries(template)) document.getElementById('f-' + key).value = value;
+  ['serial', 'assigned', 'dept', 'date', 'eol', 'asset-num'].forEach(key => document.getElementById('f-' + key).value = '');
+  document.getElementById('f-status').value = 'active';
+  document.getElementById('serial-dupe-warn').style.display = 'none';
   document.getElementById('name-suggestions').style.display = 'none';
+  document.getElementById('ai-price-result').style.display = 'none';
   loadCustomFieldsForModal(a.type, null);
+  syncLaptopEntryMode();
   autoFillAssetId();
+  document.getElementById(isLaptopBatch() ? 'f-serials' : 'f-serial').focus();
 }
 
 // ── Assigned-to autocomplete ──────────────────────────────────────────────────
@@ -3360,12 +3387,12 @@ function onAssignedInput(val) {
 
 // ── Auto-fill next asset ID ───────────────────────────────────────────────────
 async function autoFillAssetId() {
-  if (editingId) return;
+  if (editingId || isLaptopBatch()) return;
   const type = document.getElementById('f-type')?.value || 'Laptop';
   try {
     const data = await apiFetch(API + '?next_id=1&type=' + encodeURIComponent(type));
     const field = document.getElementById('f-asset-num');
-    if (field) field.value = data.id || '';
+    if (field && !editingId && !isLaptopBatch() && document.getElementById('f-type').value === type) field.value = data.id || '';
   } catch(e) {}
 }
 
@@ -3391,11 +3418,65 @@ async function checkSerialDuplicate(val) {
   }, 400);
 }
 
+function parseLaptopSerials(text) {
+  const serials = text.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  if (!serials.length) throw new Error('Enter at least one serial number.');
+  if (serials.length > 100) throw new Error('Add up to 100 laptops at a time.');
+  const seen = new Set();
+  for (const serial of serials) {
+    if (serial.length > 255) throw new Error('Serial numbers must be 255 characters or fewer.');
+    const key = serial.toLowerCase();
+    if (seen.has(key)) throw new Error('Duplicate serial number: ' + serial);
+    seen.add(key);
+  }
+  return serials;
+}
+
+function isLaptopBatch() {
+  return !editingId && document.getElementById('f-type').value === 'Laptop' && document.getElementById('f-multiple').checked;
+}
+
+function updateLaptopBatchCount() {
+  const status = document.getElementById('batch-entry-status');
+  try {
+    const serials = parseLaptopSerials(document.getElementById('f-serials').value);
+    status.textContent = serials.length + (serials.length === 1 ? ' laptop' : ' laptops');
+    status.style.color = 'var(--muted)';
+  } catch(error) {
+    status.textContent = document.getElementById('f-serials').value.trim() ? error.message : '0 laptops';
+    status.style.color = 'var(--red)';
+  }
+}
+
+function syncLaptopEntryMode() {
+  const eligible = !editingId && document.getElementById('f-type').value === 'Laptop';
+  if (!eligible) document.getElementById('f-multiple').checked = false;
+  const batch = isLaptopBatch();
+  document.getElementById('laptop-entry-mode').style.display = eligible ? '' : 'none';
+  document.getElementById('batch-serial-group').style.display = batch ? '' : 'none';
+  document.getElementById('single-serial-group').style.display = batch ? 'none' : '';
+  document.getElementById('f-asset-num').disabled = batch;
+  document.getElementById('f-asset-num-hint').textContent = batch ? '(auto-generated per laptop)' : '(leave blank to auto-generate)';
+  document.getElementById('save-btn').textContent = editingId ? 'Update Asset' : batch ? 'Save Laptops' : 'Save Asset';
+  if (batch) {
+    stopSerialScanner();
+    document.getElementById('serial-dupe-warn').style.display = 'none';
+    updateLaptopBatchCount();
+  }
+}
+
 async function saveAsset(){
+  if (document.getElementById('save-btn').disabled) return;
+  const batch = isLaptopBatch();
+  let serials;
+  if (batch) {
+    try { serials = parseLaptopSerials(document.getElementById('f-serials').value); }
+    catch(error) { toast(error.message, 'error'); return; }
+  }
   const name=document.getElementById('f-name').value.trim();
   if(!name){toast('Please enter an asset name.','error');return;}
   const dupeWarn = document.getElementById('serial-dupe-warn');
-  if (dupeWarn && dupeWarn.style.display === 'flex') {
+  if (!batch && dupeWarn && dupeWarn.style.display === 'flex') {
     toast('Serial number already exists on another asset.', 'error');
     document.getElementById('f-serial').focus();
     return;
@@ -3414,20 +3495,25 @@ async function saveAsset(){
     end_of_life:document.getElementById('f-eol').value||null,
     cost:document.getElementById('f-cost').value||null,
     notes:document.getElementById('f-notes').value.trim()};
-  if (!editingId && assetNum) payload.custom_id = assetNum;
+  if (!editingId && !batch && assetNum) payload.custom_id = assetNum;
   if (editingId && assetNum && assetNum !== editingId) payload.new_id = assetNum;
   try{
     let savedId = editingId;
-    if(editingId){
+    if (batch) {
+      const result = await apiFetch(API + '?batch=1', {method:'POST', body:JSON.stringify({ ...payload, serials, custom_fields: collectCustomFieldValues() })});
+      toast(result.created.length + ' laptops added!', 'success');
+    } else if(editingId){
       const updated=await apiFetch(API,{method:'PUT',body:JSON.stringify(payload)});
       savedId=updated.id;
       toast('Asset updated!','success');
     }
     else{const created=await apiFetch(API,{method:'POST',body:JSON.stringify(payload)});savedId=created.id;toast('Asset added!','success');}
-    await saveCustomFieldValues(savedId);
+    if (!batch) await saveCustomFieldValues(savedId);
     closeModal('asset-modal'); loadAssets(); loadDashboard();
     if (document.getElementById('page-users').classList.contains('active')) loadUsers();
-  }finally{btn.disabled=false; btn.textContent=editingId?'Update Asset':'Save Asset';}
+  } catch(error) {
+    if (batch) document.getElementById('batch-entry-status').textContent = error.message;
+  }finally{btn.disabled=false; syncLaptopEntryMode();}
 }
 
 async function deleteAsset(id){
@@ -3475,19 +3561,42 @@ function printQR(){
   w.document.close();w.focus();setTimeout(()=>{w.print();w.close();},500);
 }
 
-function loadHtml5QrCode(cb){
+let scannerLibraryPromise = null;
+const scannerMobileLayout = window.matchMedia('(max-width: 767px)');
+function isMobileScannerLayout() { return scannerMobileLayout.matches; }
+scannerMobileLayout.addEventListener('change', event => {
+  if (!event.matches) {
+    stopSerialScanner();
+    if (scannerActive) stopScanner();
+  }
+});
+function loadHtml5QrCode(cb, onError = error => toast(error.message, 'error')){
   if(window.Html5Qrcode){cb();return;}
-  const s=document.createElement('script');
-  s.src='https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
-  s.onload=cb;document.head.appendChild(s);
+  if (!scannerLibraryPromise) scannerLibraryPromise = new Promise((resolve, reject) => {
+    const script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+    const timer=setTimeout(() => { script.remove(); reject(new Error('Barcode library timed out. Check the connection or CDN blocking.')); }, 15000);
+    script.onload=()=>{clearTimeout(timer);resolve();};
+    script.onerror=()=>{clearTimeout(timer);script.remove();reject(new Error('Barcode library could not load. Check the connection or CDN blocking.'));};
+    document.head.appendChild(script);
+  }).catch(error => {scannerLibraryPromise=null;throw error;});
+  scannerLibraryPromise.then(cb).catch(onError);
 }
 function toggleScanner(){scannerActive?stopScanner():startScanner();}
 function startScanner(){
+  if (!isMobileScannerLayout()) return;
   loadHtml5QrCode(()=>{
+    if (!isMobileScannerLayout()) return;
     document.getElementById('reader').innerHTML='';
     html5QrCode=new Html5Qrcode('reader');
-    html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},onScanSuccess,()=>{})
+    const scanner=html5QrCode;
+    scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:240}},decoded=>{if(isMobileScannerLayout())onScanSuccess(decoded);},()=>{})
     .then(()=>{
+      if (!isMobileScannerLayout()) {
+        scanner.stop().catch(()=>{});
+        if (html5QrCode===scanner) html5QrCode=null;
+        return;
+      }
       scannerActive=true;
       document.getElementById('scan-btn').innerHTML='<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Stop Camera';
     }).catch(err=>{
@@ -3532,47 +3641,164 @@ function sf(label,val,mono=false){
 }
 
 let serialScanner=null, serialScannerActive=false;
-function toggleSerialScanner(){serialScannerActive?stopSerialScanner():startSerialScanner();}
-function startSerialScanner(){
-  loadHtml5QrCode(()=>{
-    const wrap=document.getElementById('serial-scanner-wrap');
-    const btn=document.getElementById('serial-scan-btn');
-    if(!wrap||!btn)return;
-    wrap.style.display='block';
-    document.getElementById('serial-scanner').innerHTML='';
-    const formats=[
-      Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,  Html5QrcodeSupportedFormats.DATA_MATRIX,
-      Html5QrcodeSupportedFormats.EAN_13,   Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,    Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.ITF,      Html5QrcodeSupportedFormats.PDF_417,
-      Html5QrcodeSupportedFormats.QR_CODE,
-    ];
-    serialScanner=new Html5Qrcode('serial-scanner',{formatsToSupport:formats});
-    serialScanner.start(
-      {facingMode:'environment'},
-      {fps:10, qrbox:{width:260,height:100}},
-      (decoded)=>{
-        document.getElementById('f-serial').value=decoded;
-        checkSerialDuplicate(decoded);
-        stopSerialScanner();
-      },
-      ()=>{}
-    ).then(()=>{
-      serialScannerActive=true;
-      btn.style.cssText+='border-color:rgba(0,229,255,0.5);color:var(--accent);background:rgba(0,229,255,0.08)';
-    }).catch(err=>{
-      wrap.innerHTML=`<div style="color:var(--red);padding:16px;font-size:13px;text-align:center">Camera error: ${err}<br><small style="color:var(--muted)">Requires HTTPS and camera permission.</small></div>`;
-    });
-  });
+let serialScanVersion=0, serialScanStarting=false, serialScanStartPromise=null;
+let serialScanStopPromise=null;
+let serialScanCandidate='', serialScanReads=0, serialScanLastRead=0, serialScanHintTimer=null;
+
+function serialScanRegion(width, height, mode) {
+  const targetWidth = Math.floor(Math.min(width * 0.86, mode === 'matrix' ? height * 0.7 : 500));
+  return {width:targetWidth, height:mode === 'matrix' ? targetWidth : Math.floor(Math.min(70, Math.max(50, height * 0.25), height - 1))};
 }
-function stopSerialScanner(){
-  serialScanner?.stop().catch(()=>{});
-  serialScanner=null; serialScannerActive=false;
-  const wrap=document.getElementById('serial-scanner-wrap');
-  const btn=document.getElementById('serial-scan-btn');
-  if(wrap)wrap.style.display='none';
-  if(btn){btn.style.borderColor='';btn.style.color='';btn.style.background='';}
+
+function serialCameraError(error) {
+  const text=String(error?.name || '') + ' ' + String(error?.message || error || '');
+  if (/NotAllowed|Permission|denied/i.test(text)) return 'Camera permission denied. Allow camera access for this site in browser settings.';
+  if (/NotFound|DevicesNotFound/i.test(text)) return 'No camera found. Connect a camera or enter the serial manually.';
+  if (/NotReadable|TrackStart|in use/i.test(text)) return 'Camera unavailable. Close other apps using it, then try again.';
+  if (/Overconstrained|ConstraintNotSatisfied/i.test(text)) return 'Camera settings are unsupported on this device. Try another camera or enter the serial manually.';
+  return 'Camera could not start. Use HTTPS, check camera permission, and try again.';
+}
+
+function serialScanStatus(message) {
+  document.getElementById('serial-scan-status').textContent=message;
+  document.getElementById('serial-scan-status').title=message;
+}
+
+function toggleSerialScanHelp() {
+  const help=document.getElementById('serial-scan-help');
+  help.hidden=!help.hidden;
+  document.getElementById('serial-help-btn').setAttribute('aria-expanded', String(!help.hidden));
+}
+
+function toggleSerialScanner(){serialScannerActive||serialScanStarting?stopSerialScanner():startSerialScanner();}
+
+async function startSerialScanner(){
+  if (!isMobileScannerLayout()) return;
+  if(serialScanStopPromise) await serialScanStopPromise;
+  if (!isMobileScannerLayout()) return;
+  if(!document.getElementById('asset-modal').classList.contains('open') || isLaptopBatch()) return;
+  if (serialScanStarting || serialScannerActive) return;
+  const version=++serialScanVersion;
+  serialScanStarting=true;
+  document.getElementById('serial-scanner-wrap').style.display='block';
+  document.getElementById('serial-scan-candidate').hidden=true;
+  serialScanCandidate='';serialScanReads=0;serialScanLastRead=0;
+  serialScanStatus('Starting camera...');
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    serialScanStarting=false;
+    serialScanStatus('Camera access requires HTTPS and a browser with camera support. Enter the serial manually if unavailable.');
+    return;
+  }
+  await new Promise(resolve => loadHtml5QrCode(resolve, error => {
+    if (version===serialScanVersion) {serialScanStarting=false;serialScanStatus(error.message);}
+    resolve();
+  }));
+  if (version!==serialScanVersion || !window.Html5Qrcode || !isMobileScannerLayout()) return;
+  const mode=document.getElementById('serial-scan-mode').value;
+  const formats=mode==='matrix'
+    ? [Html5QrcodeSupportedFormats.DATA_MATRIX,Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.PDF_417]
+    : [Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.CODE_93,Html5QrcodeSupportedFormats.ITF,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E];
+  const region=document.getElementById('serial-scanner');
+  region.replaceChildren();
+  let targetDimensions;
+  const scanner=new Html5Qrcode('serial-scanner',{formatsToSupport:formats,verbose:false});
+  serialScanner=scanner;
+  try {
+    serialScanStartPromise=scanner.start(
+      {facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+      {fps:12,qrbox:(width,height)=>{targetDimensions=serialScanRegion(width,height,mode);return targetDimensions;}},
+      decoded=>{if(version===serialScanVersion) handleSerialRead(decoded, scanner);},
+      ()=>{}
+    );
+    await serialScanStartPromise;
+    if(version!==serialScanVersion) return;
+    serialScannerActive=true;serialScanStarting=false;
+    const target=document.createElement('div');
+    target.id='serial-scan-target';
+    target.style.width=targetDimensions.width+'px';target.style.height=targetDimensions.height+'px';
+    target.title='Only this outlined region is decoded; the dashed line is an alignment guide.';
+    region.appendChild(target);
+    serialScanStatus('Looking for a readable barcode in the target.');
+    serialScanHintTimer=setTimeout(()=>{
+      if(version===serialScanVersion&&!document.getElementById('serial-scan-candidate').hidden) return;
+      if(version===serialScanVersion) serialScanStatus('No confirmed code yet. Check focus, glare, barcode margins, and the selected barcode type.');
+    },6000);
+    document.getElementById('serial-scan-btn').setAttribute('aria-pressed','true');
+    try {
+      const capabilities=scanner.getRunningTrackCapabilities();
+      if(capabilities.focusMode?.includes('continuous')) await scanner.applyVideoConstraints({advanced:[{focusMode:'continuous'}]});
+      if(version!==serialScanVersion) return;
+      if(capabilities.zoom && capabilities.zoom.max>capabilities.zoom.min) {
+        const zoom=document.getElementById('serial-zoom');
+        zoom.min=capabilities.zoom.min;zoom.max=capabilities.zoom.max;zoom.step=capabilities.zoom.step||0.1;
+        zoom.value=scanner.getRunningTrackSettings().zoom||capabilities.zoom.min;
+        document.getElementById('serial-zoom-control').style.display='flex';
+        document.getElementById('serial-zoom-control').hidden=false;
+      }
+    } catch(_) {}
+  } catch(error) {
+    if(version===serialScanVersion) {serialScanStarting=false;serialScannerActive=false;serialScanner=null;serialScanStatus(serialCameraError(error));}
+  }
+}
+
+function handleSerialRead(decoded, scanner) {
+  if(!document.getElementById('serial-scan-candidate').hidden) return;
+  const value=String(decoded).trim();
+  if(!value || value.length>255 || /[\x00-\x1f\x7f]/.test(value)) {serialScanStatus('Decoded value is not a valid serial. Reposition the serial label.');return;}
+  const now=Date.now();
+  serialScanReads=value===serialScanCandidate && now-serialScanLastRead<1500 ? serialScanReads+1 : 1;
+  serialScanCandidate=value;serialScanLastRead=now;
+  if(serialScanReads<3) {serialScanStatus('Confirming matching reads ('+serialScanReads+'/3)...');return;}
+  scanner.pause(true);
+  clearTimeout(serialScanHintTimer);
+  document.getElementById('serial-scan-value').textContent=value;
+  document.getElementById('serial-scan-candidate').hidden=false;
+  serialScanStatus('Code captured. Compare it with the printed serial before using it.');
+}
+
+function acceptSerialScan() {
+  if(document.getElementById('serial-scan-candidate').hidden || !serialScanCandidate) return;
+  document.getElementById('f-serial').value=serialScanCandidate;
+  checkSerialDuplicate(serialScanCandidate);
+  stopSerialScanner();
+}
+
+function retrySerialScan() {
+  if(!serialScannerActive || document.getElementById('serial-scan-candidate').hidden) return;
+  serialScanCandidate='';serialScanReads=0;serialScanLastRead=0;
+  document.getElementById('serial-scan-candidate').hidden=true;
+  serialScanner.resume();
+  serialScanStatus('Looking for a readable barcode in the target.');
+}
+
+async function setSerialCameraZoom(value) {
+  if(!serialScannerActive) return;
+  try {await serialScanner.applyVideoConstraints({advanced:[{zoom:Number(value)}]});}
+  catch(_) {serialScanStatus('This camera could not apply that zoom level. Move the camera instead.');}
+}
+
+async function restartSerialScanner() {await stopSerialScanner();await startSerialScanner();}
+
+async function stopSerialScanner(){
+  if(serialScanStopPromise) return serialScanStopPromise;
+  serialScanVersion++;
+  const scanner=serialScanner;
+  const pending=serialScanStartPromise;
+  serialScanner=null;serialScannerActive=false;serialScanStarting=false;serialScanStartPromise=null;
+  clearTimeout(serialScanHintTimer);
+  document.getElementById('serial-scanner-wrap').style.display='none';
+  document.getElementById('serial-scan-candidate').hidden=true;
+  document.getElementById('serial-zoom-control').style.display='none';
+  document.getElementById('serial-zoom-control').hidden=true;
+  document.getElementById('serial-scan-btn').setAttribute('aria-pressed','false');
+  if(scanner) {
+    serialScanStopPromise=(async()=>{
+      try {if(pending)await pending;await scanner.stop();scanner.clear();}
+      catch(_) {}
+    })();
+    await serialScanStopPromise;
+    serialScanStopPromise=null;
+  }
 }
 
 async function exportAssetCSV(){
@@ -3582,33 +3808,6 @@ async function exportAssetCSV(){
   const csv=[h.join(','),...rows.map(r=>r.join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   const el=document.createElement('a');el.href=url;el.download='assets-export.csv';el.click();URL.revokeObjectURL(url);
-}
-
-async function exportADP(btn) {
-  const orig = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating…`;
-  try {
-    const res = await fetch('api/adp_export.php');
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Export failed');
-    }
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const el   = document.createElement('a');
-    const date = new Date().toISOString().split('T')[0];
-    el.href = url;
-    el.download = `AssetIQ_ADP_Export_${date}.csv`;
-    el.click();
-    URL.revokeObjectURL(url);
-    toast('ADP export downloaded!', 'success');
-  } catch(e) {
-    toast(e.message || 'ADP export failed', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = orig;
-  }
 }
 
 let toastTimer;
@@ -3811,153 +4010,6 @@ function openDeptModal(name) {
   document.getElementById('user-modal').classList.add('open');
 }
 
-// ── INTUNE ────────────────────────────────────────────────────
-const INTUNE_API = 'api/intune.php';
-let intuneDevices = [];
-let intuneSelected = new Set();
-
-async function initIntunePage() {
-  try {
-    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test'})});
-    const data = await res.json();
-    const show = !data.unconfigured;
-    document.getElementById('intune-unconfigured').style.display = show ? 'none'  : 'block';
-    document.getElementById('intune-configured').style.display   = show ? 'block' : 'none';
-  } catch {
-    document.getElementById('intune-unconfigured').style.display = 'none';
-    document.getElementById('intune-configured').style.display   = 'block';
-  }
-}
-
-async function intuneTestConnection() {
-  const status = document.getElementById('intune-status');
-  status.textContent = 'Testing…'; status.style.color = 'var(--muted)';
-  try {
-    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test'})});
-    const data = await res.json();
-    if (data.success) { status.textContent = '✓ Connected to Intune'; status.style.color = 'var(--green)'; }
-    else              { status.textContent = '✗ ' + (data.error||'Failed'); status.style.color = 'var(--red)'; }
-  } catch(e) { status.textContent = '✗ ' + e.message; status.style.color = 'var(--red)'; }
-}
-
-async function intuneFetch() {
-  const btn    = document.getElementById('intune-fetch-btn');
-  const status = document.getElementById('intune-status');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></div> Fetching…';
-  status.textContent = ''; intuneDevices = []; intuneSelected = new Set();
-  document.getElementById('intune-filter-bar').style.display = 'none';
-  document.getElementById('intune-device-list').innerHTML = '<div class="spinner"></div>';
-  try {
-    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'fetch'})});
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    intuneDevices = data.devices || [];
-    status.textContent = `Found ${data.total} devices — ${data.new} not yet imported`;
-    status.style.color = 'var(--muted)';
-    document.getElementById('intune-filter-bar').style.display = 'block';
-    intuneDevices.forEach((_,i) => { if (!intuneDevices[i].alreadyExists) intuneSelected.add(i); });
-    renderIntuneDevices();
-  } catch(e) {
-    document.getElementById('intune-device-list').innerHTML = `<div class="eol-banner">✗ ${esc(e.message)}</div>`;
-    status.textContent = '';
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Fetch from Intune';
-  }
-}
-
-function renderIntuneDevices() {
-  const q         = (document.getElementById('intune-search')?.value||'').toLowerCase();
-  const hideExist = document.getElementById('intune-hide-existing')?.checked;
-  const list      = document.getElementById('intune-device-list');
-  const selInfo   = document.getElementById('intune-selection-info');
-  if (!intuneDevices.length) { list.innerHTML = ''; return; }
-
-  const filtered = intuneDevices.filter((d,i) => {
-    if (hideExist && d.alreadyExists) return false;
-    if (q && !([d.deviceName,d.model,d.serial,d.assignedTo,d.os].join(' ').toLowerCase().includes(q))) return false;
-    return true;
-  });
-
-  const newCount   = [...intuneSelected].filter(i => !intuneDevices[i]?.alreadyExists).length;
-  selInfo.textContent = `${intuneSelected.size} selected · ${newCount} new to import`;
-
-  const filteredIdx = filtered.map(d => intuneDevices.indexOf(d));
-  const allSelected = filteredIdx.length > 0 && filteredIdx.every(i => intuneSelected.has(i));
-
-  list.innerHTML = `
-    <div class="select-all-row" onclick="intuneToggleAll()">
-      <div class="intune-check" style="${allSelected?'background:var(--accent);border-color:var(--accent)':''}">
-        ${allSelected?'<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':''}
-      </div>
-      <span>${allSelected?'Deselect all':'Select all'} (${filtered.length} shown)</span>
-    </div>
-    ${filtered.map(d => {
-      const idx = intuneDevices.indexOf(d);
-      const sel = intuneSelected.has(idx);
-      const comp = (d.compliance||'unknown').toLowerCase();
-      return `<div class="intune-device-card ${sel?'selected':''} ${d.alreadyExists?'already-exists':''}" onclick="intuneToggle(${idx})">
-        <div class="intune-check">${sel?'<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>
-        <div class="intune-device-info">
-          <div class="intune-device-name">${esc(d.deviceName)}</div>
-          <div class="intune-device-meta">
-            ${d.model?`<span>📦 ${esc(d.model)}</span>`:''}
-            ${d.serial?`<span>🔢 ${esc(d.serial)}</span>`:''}
-            ${d.assignedTo?`<span>👤 ${esc(d.assignedTo)}</span>`:''}
-            ${d.enrolledDate?`<span>📅 ${d.enrolledDate}</span>`:''}
-          </div>
-          <div class="intune-badges">
-            ${typeBadge(d.type)}
-            <span class="badge compliance-${comp}">${comp}</span>
-            ${d.alreadyExists?'<span class="badge" style="background:rgba(90,96,112,0.15);color:var(--muted)">Already imported</span>':''}
-            ${d.os?`<span class="badge" style="background:var(--surface2);color:var(--muted)">${esc(d.os.trim())}</span>`:''}
-          </div>
-        </div>
-      </div>`;
-    }).join('')}`;
-}
-
-function intuneToggle(idx) {
-  if (intuneSelected.has(idx)) intuneSelected.delete(idx); else intuneSelected.add(idx);
-  renderIntuneDevices();
-}
-
-function intuneToggleAll() {
-  const q         = (document.getElementById('intune-search')?.value||'').toLowerCase();
-  const hideExist = document.getElementById('intune-hide-existing')?.checked;
-  const filtered  = intuneDevices.filter(d => {
-    if (hideExist && d.alreadyExists) return false;
-    if (q && !([d.deviceName,d.model,d.serial,d.assignedTo].join(' ').toLowerCase().includes(q))) return false;
-    return true;
-  });
-  const idxs       = filtered.map(d => intuneDevices.indexOf(d));
-  const allSelected = idxs.every(i => intuneSelected.has(i));
-  if (allSelected) idxs.forEach(i => intuneSelected.delete(i));
-  else             idxs.forEach(i => intuneSelected.add(i));
-  renderIntuneDevices();
-}
-
-async function intuneImportSelected() {
-  if (intuneSelected.size === 0) { toast('No devices selected.','error'); return; }
-  const toImport = [...intuneSelected].map(i => intuneDevices[i]).filter(d => !d.alreadyExists);
-  if (toImport.length === 0) { toast('All selected are already imported.','error'); return; }
-  if (!confirm(`Import ${toImport.length} device${toImport.length>1?'s':''} into AssetIQ?`)) return;
-  const btn = document.getElementById('intune-import-btn');
-  btn.disabled = true; btn.textContent = 'Importing…';
-  try {
-    const res  = await fetch(INTUNE_API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'import',devices:toImport})});
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    toast(`✓ Imported ${data.imported} device${data.imported>1?'s':''}${data.skipped?' ('+data.skipped+' skipped)':''}`, 'success');
-    await intuneFetch(); loadDashboard();
-  } catch(e) { toast(e.message,'error'); }
-  finally {
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Import Selected';
-  }
-}
-
 loadDashboard();
 loadAssets();
 
@@ -4095,10 +4147,6 @@ _sObs.observe(document.body,{childList:true,subtree:true});
 <div class="page" id="page-settings">
   <h1 class="page-title">Settings</h1>
   <p style="color:var(--muted);font-size:14px;margin-top:-8px;margin-bottom:20px">Configure alerts and system preferences</p>
-  <div style="display:flex;gap:4px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content">
-    <button id="stab-general" class="settings-tab" onclick="switchSettingsTab('general')" style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Outfit',sans-serif;background:rgba(0,229,255,0.1);color:var(--accent);transition:all 0.15s">General</button>
-    <button id="stab-intune"  class="settings-tab" onclick="switchSettingsTab('intune')"  style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Outfit',sans-serif;background:transparent;color:var(--muted);transition:all 0.15s">Intune</button>
-  </div>
   <div id="settings-tab-general">
   <div class="settings-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -4163,10 +4211,6 @@ _sObs.observe(document.body,{childList:true,subtree:true});
   </div>
   </div><!-- /settings-tab-general -->
 
-  <!-- Intune tab -->
-  <div id="settings-tab-intune" style="display:none">
-    <div id="settings-intune-mount"></div>
-  </div>
 </div>
 
 </body>

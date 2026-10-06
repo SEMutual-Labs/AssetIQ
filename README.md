@@ -187,14 +187,91 @@ retry requests, so interrupted writes are not silently submitted again.
 
 ## Review and Local Checks
 
+### Dashboard and Navigation
+
+Desktop inventory and Recent Assets rows open the asset editor when clicked, or
+when focused and activated with Enter/Space. QR/Edit/Delete buttons retain their
+own actions; batch selection remains separate. The dashboard's Past End of Life
+box sits beside Total Value and opens the overdue list. It counts active,
+non-archived assets with EOL dates before today, not upcoming replacements.
+
+Intune navigation/settings and ADP export controls have been removed from the
+interface. Their backend endpoints remain for compatibility with possible
+external callers; Microsoft sign-in configuration is unchanged. Normal asset
+and report CSV exports remain available.
+
+### Faster Asset Entry
+
+The add-asset model picker searches the full inventory, including retired assets,
+rather than only the current filtered list. Enter a model-number fragment, name,
+asset ID, serial, or a model code recorded in notes. Punctuation and case are
+ignored when matching. This is an inventory lookup, not an external product
+catalog: unknown models can still be entered manually.
+
+Select a suggestion or use **Copy Existing** to reuse name, type, cost, and notes.
+The existing device's serial, ID, assignee, department, purchase/EOL dates, status,
+links, and custom dates are not copied. Set device-specific details for the new
+asset as needed.
+
+For a new Laptop, enable **Multiple Laptops** and enter one serial per line, up
+to 100. All laptops use the shared form values, including cost per laptop and
+any custom dates entered for this batch. IDs are generated separately. Repeated
+serials in the input and serials already recorded in inventory are rejected.
+Assets, audit events, and custom dates are saved in one database transaction:
+an insertion failure rolls back the whole batch. This does not replace the
+cross-session allocation/concurrency follow-up noted in the code review.
+
+Deploy the updated page and asset API together. No new database columns are
+required for these entry features.
+
+### Serial Barcode Capture
+
+Serial and asset QR cameras are available only in the mobile layout (viewport
+width below 768px). Desktop camera controls are hidden and start calls are
+blocked. Switching to desktop width stops active cameras. This follows the UI
+breakpoint, not device detection; a narrow desktop window uses the mobile UI.
+Manual serial entry remains available in both layouts.
+
+The serial scanner uses html5-qrcode's cropped decoding region, outlined by a
+stationary target. The dashed center line is only an alignment guide, not an
+individual sampling point. Default Linear Barcode mode excludes square QR/Data
+Matrix codes; select 2D Code when the printed serial uses those formats.
+
+Three matching reads produce a paused candidate for review. The serial input is
+not changed until **Use Serial** is selected. **Scan Again** discards the candidate
+and resumes the camera. This reduces accidental reads but cannot determine
+whether the captured barcode represents a serial, SKU, or other identifier.
+Compare it with the human-readable serial printed on the machine.
+
+The help control supports hover tooltips and tap/keyboard expansion. Camera
+permission, missing/in-use cameras, unsupported constraints, and library-load
+failures have separate feedback. A no-read hint lists focus/glare/margin checks;
+the decoder does not diagnose blur or glare. Continuous focus is requested only
+when supported, and a zoom slider appears only when reported by the camera.
+
+Local tests cover crop dimensions, matching reads, confirmation, and camera
+cleanup while startup is pending. Desktop/mobile browser checks use a simulated
+camera. Real-world accuracy still requires HTTPS-device testing with the dense
+labels, including neighboring barcodes, glossy surfaces, rotated codes, camera
+permission denial, and stop/reopen behavior. Zoom/focus support varies by device.
+
+### Tests
+
 See [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for completed cleanup and prioritized
 remaining findings, including authentication and database migration concerns.
 
 ```powershell
 node --test tests/*.test.cjs
 php tests/backend.test.php
+php tests/laptop-batch.test.php
 Get-ChildItem -Recurse -Filter *.php | ForEach-Object { php -l $_.FullName }
 ```
 
 These checks do not require production secrets or a database. They do not replace
 authenticated staging tests against the actual database engine.
+
+For a local mock-data UI preview, run `node tests/preview.cjs --fixtures` and open
+the loopback URL printed by the command. This strips PHP and uses only in-memory
+fake inventory; it does not test real authentication or SQL and must never be
+deployed as an application server. Without `--fixtures`, APIs deliberately return
+503. Stop the process when finished.

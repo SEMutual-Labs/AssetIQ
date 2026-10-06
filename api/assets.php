@@ -92,6 +92,71 @@ function diffFields(array $old, array $new): array {
     return $changed;
 }
 
+function validateLaptopBatch(array $data): array {
+    if (($data['type'] ?? '') !== 'Laptop') throw new InvalidArgumentException('Batch entry is available for laptops only.');
+    if (!is_string($data['name'] ?? null) || trim($data['name']) === '') throw new InvalidArgumentException('Asset name is required.');
+    $serials = $data['serials'] ?? null;
+    if (!is_array($serials) || !array_is_list($serials) || count($serials) < 1 || count($serials) > 100) {
+        throw new InvalidArgumentException('Provide between 1 and 100 serial numbers.');
+    }
+    $seen = [];
+    $out = [];
+    foreach ($serials as $serial) {
+        if (!is_string($serial) || trim($serial) === '' || strlen(trim($serial)) > 255) {
+            throw new InvalidArgumentException('Every laptop requires a serial number of 255 characters or fewer.');
+        }
+        $serial = trim($serial);
+        $key = strtolower($serial);
+        if (isset($seen[$key])) throw new InvalidArgumentException('Duplicate serial number: ' . $serial);
+        $seen[$key] = true;
+        $out[] = $serial;
+    }
+    return $out;
+}
+
+function createLaptopBatch(PDO $db, array $data, string $actor): array {
+    $serials = validateLaptopBatch($data);
+    $asset = sanitizeAsset($data);
+    $values = $data['custom_fields'] ?? [];
+    if (!is_array($values)) throw new InvalidArgumentException('Custom fields must be an object.');
+    $definitions = $db->prepare("SELECT field_key FROM custom_field_defs WHERE asset_type = ?");
+    $definitions->execute(['Laptop']);
+    $allowed = $definitions->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($values as $key => $value) {
+        if (!in_array($key, $allowed, true) || !is_string($value) || ($value !== '' && sanitizeDate($value) === null)) {
+            throw new InvalidArgumentException('Invalid custom date field: ' . $key);
+        }
+    }
+    $db->beginTransaction();
+    try {
+        $check = $db->prepare("SELECT id FROM assets WHERE LOWER(TRIM(serial)) = LOWER(?) LIMIT 1");
+        foreach ($serials as $serial) {
+            $check->execute([$serial]);
+            if ($check->fetchColumn() !== false) throw new InvalidArgumentException('Serial number already exists: ' . $serial);
+        }
+        $insert = $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes)");
+        $fieldInsert = $db->prepare("INSERT INTO custom_field_values (asset_id,field_key,value) VALUES (?,?,?)");
+        $created = [];
+        foreach ($serials as $serial) {
+            $id = nextId($db, 'Laptop');
+            $asset['serial'] = $serial;
+            $insert->execute(array_merge(['id' => $id], $asset));
+            $initial = [];
+            foreach ($asset as $key => $value) {
+                if ($value !== '' && $value !== null) $initial[$key] = ['from' => null, 'to' => $value];
+            }
+            writeLog($db, $id, $asset['name'], 'created', $initial, $actor);
+            foreach ($values as $key => $value) $fieldInsert->execute([$id, $key, $value]);
+            $created[] = ['id' => $id, 'serial' => $serial];
+        }
+        $db->commit();
+        return $created;
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
 // Routes
 
 // Audit log
@@ -228,6 +293,17 @@ if ($method === 'GET') {
 }
 
 // POST — create
+if ($method === 'POST' && isset($_GET['batch'])) {
+    try {
+        respond(['created' => createLaptopBatch($db, bodyJson(), $actor)], 201);
+    } catch (InvalidArgumentException $error) {
+        respond(['error' => $error->getMessage()], 422);
+    } catch (Throwable $error) {
+        error_log('AssetIQ laptop batch failed: ' . $error->getMessage());
+        respond(['error' => 'The batch was not saved. Check the serial numbers and try again.'], 500);
+    }
+}
+
 if ($method === 'POST') {
     $d = bodyJson(); if (empty($d['name'])) respond(['error'=>'name is required'],422);
     if (!empty($d['custom_id'])) {

@@ -54,6 +54,7 @@ loadFunction('api/assets.php', 'sanitizeDate');
 loadFunction('api/assets.php', 'sanitizeAsset');
 loadFunction('api/settings.php', 'publicSettings');
 loadFunction('api/ai_price.php', 'validEstimate');
+loadFunction('api/assets.php', 'validateLaptopBatch');
 
 $database = new IdDatabase();
 check(nextId($database, 'Laptop') === 'SEM-NB10', 'Next ID follows all reserved IDs');
@@ -73,3 +74,14 @@ check(!validEstimate(array_replace($estimate, ['midpoint' => "0';alert(1)"])), '
 check(!validEstimate(array_replace($estimate, ['midpoint' => 100])), 'Inconsistent AI estimate range is rejected');
 check(!validEstimate(array_replace($estimate, ['low' => -1])), 'Negative AI prices are rejected');
 check(!validEstimate(array_replace($estimate, ['reasoning' => []])), 'Non-text AI explanation is rejected');
+
+$batch = ['name' => 'Latitude 5440', 'type' => 'Laptop', 'serials' => [' SN001 ', 'SN002']];
+check(validateLaptopBatch($batch) === ['SN001', 'SN002'], 'Batch serials are trimmed and preserved');
+foreach ([['serials' => ['same', 'SAME']], ['serials' => []], ['serials' => ['']], ['serials' => [123]], ['type' => 'Monitor'], ['name' => ' '], ['serials' => array_fill(0, 101, 'serial')]] as $invalid) {
+    try {
+        validateLaptopBatch(array_replace($batch, $invalid));
+        throw new RuntimeException('Invalid batch was accepted');
+    } catch (InvalidArgumentException $error) {
+        echo "PASS: Invalid laptop batch rejected\n";
+    }
+}
