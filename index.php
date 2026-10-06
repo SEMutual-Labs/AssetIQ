@@ -381,10 +381,6 @@ body::before {
 .card-menu-item.danger:hover { background: rgba(255,59,92,0.06); }
 .card-menu-item.warn  { color: var(--amber); }
 .card-menu-item.warn:hover  { background: rgba(255,180,0,0.06); }
-.card-menu-item.eol-ack { color: var(--orange); }
-.card-menu-item.eol-ack:hover { background: rgba(255,140,0,0.06); }
-.card-menu-item.eol-clear { color: var(--muted); }
-.card-menu-item.eol-clear:hover { background: rgba(255,255,255,0.04); }
 
 /* ── BATCH SELECTION ── */
 .batch-bar {
@@ -787,13 +783,6 @@ tr.selected td { background: rgba(0,229,255,0.04) !important; }
   padding: 3px 9px; border-radius: 20px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap;
   box-shadow: 0 0 10px rgba(255,140,0,0.08);
-}
-.flag-override {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: rgba(255,180,0,0.08); color: #c8931a;
-  border: 1px solid rgba(255,180,0,0.18);
-  padding: 3px 9px; border-radius: 20px;
-  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap;
 }
 .eol-banner {
   background: rgba(255,59,92,0.06); border: 1px solid rgba(255,59,92,0.18);
@@ -1537,7 +1526,7 @@ input[type="checkbox"] {
         <option value="retired">Retired</option>
         <option value="eol">End of Life</option>
       </select>
-      <button class="btn btn-ghost" onclick="exportCSV()" style="width:auto;min-width:auto;padding:12px 14px;min-height:44px;flex-shrink:0">
+      <button class="btn btn-ghost" onclick="exportAssetCSV()" style="width:auto;min-width:auto;padding:12px 14px;min-height:44px;flex-shrink:0">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         CSV
       </button>
@@ -1711,10 +1700,6 @@ input[type="checkbox"] {
         <div class="form-group full">
           <label class="form-label">Notes</label>
           <textarea id="f-notes" placeholder="Any additional notes…"></textarea>
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0">
-            <input type="checkbox" id="f-eol-override" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);appearance:auto;-webkit-appearance:checkbox;padding:0;min-height:unset;background:transparent;box-shadow:none;border:none;cursor:pointer;">
-            <span style="font-size:13px;font-weight:600">Acknowledge EOL warning <span style="font-weight:400;color:var(--muted)">(silences overdue flag)</span></span>
-          </label>
         </div>
         <!-- Custom date fields (injected dynamically by loadCustomFieldsForModal) -->
         <div id="custom-fields-modal-section" style="display:none">
@@ -1858,10 +1843,22 @@ const T={Laptop:'badge-laptop',Desktop:'badge-desktop',Monitor:'badge-monitor',P
 const DEPARTMENTS=['IT','Finance','Claims','Management','Marketing','Underwriting','Agent','No Longer At SEM'];
 let editingId=null, sortKey='id', sortAsc=true;
 let scannerActive=false, html5QrCode=null, searchTimer=null;
+let authRedirectPending=false;
 
 async function apiFetch(url, opts={}) {
   try {
-    const res = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts});
+    const res = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts}).catch(error => {
+      if (error.name === 'AbortError') throw error;
+      console.error('AssetIQ API request failed', error);
+      throw new Error('Unable to reach the AssetIQ API. Check your connection or VPN and try again.', {cause: error});
+    });
+    if (res.status === 401) {
+      if (!authRedirectPending) {
+        authRedirectPending = true;
+        window.location.replace('/auth/login.php');
+      }
+      throw new Error('Your session has expired. Please sign in again.');
+    }
     if (!res.ok) {
       let msg = 'API error ' + res.status;
       try { const d = await res.json(); msg = d.error || msg; } catch(_) {}
@@ -1869,7 +1866,7 @@ async function apiFetch(url, opts={}) {
     }
     return await res.json();
   } catch(e) {
-    if (e.name !== 'AbortError') toast(e.message, 'error');
+    if (!authRedirectPending && e.name !== 'AbortError') toast(e.message, 'error');
     throw e;
   }
 }
@@ -1953,18 +1950,18 @@ async function getAIPrice() {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div style="font-size:18px;font-weight:700;color:var(--text)">
           $${Number(est.low).toLocaleString()} – $${Number(est.high).toLocaleString()}
-          <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">${est.currency}</span>
+          <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">${esc(est.currency)}</span>
         </div>
         <span style="font-size:10px;font-weight:600;color:${confidenceColor};background:${confidenceColor}18;padding:2px 8px;border-radius:20px">${confidenceLabel}</span>
       </div>
-      <div style="color:var(--muted);font-size:12px;margin-bottom:8px">${est.reasoning}</div>
-      ${est.caveat ? `<div style="color:var(--orange);font-size:11px;margin-bottom:8px">⚠ ${est.caveat}</div>` : ''}
-      <button onclick="document.getElementById('f-cost').value='${est.midpoint}';document.getElementById('ai-price-result').style.display='none'" style="font-size:11px;padding:5px 10px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.2);border-radius:6px;color:var(--accent);cursor:pointer;font-weight:600">
+      <div style="color:var(--muted);font-size:12px;margin-bottom:8px">${esc(est.reasoning)}</div>
+      ${est.caveat ? `<div style="color:var(--orange);font-size:11px;margin-bottom:8px">⚠ ${esc(est.caveat)}</div>` : ''}
+      <button onclick="document.getElementById('f-cost').value='${Number(est.midpoint)}';document.getElementById('ai-price-result').style.display='none'" style="font-size:11px;padding:5px 10px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.2);border-radius:6px;color:var(--accent);cursor:pointer;font-weight:600">
         Use midpoint ($${Number(est.midpoint).toLocaleString()})
       </button>`;
 
   } catch (err) {
-    resultEl.innerHTML = `<span style="color:var(--red)">⚠ ${err.message||'Could not get estimate — check your API key in config.php.'}</span>`;
+    resultEl.innerHTML = `<span style="color:var(--red)">⚠ ${esc(err.message||'Could not get estimate — check your API key in config.php.')}</span>`;
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI Estimate`;
@@ -2015,8 +2012,8 @@ async function loadDashboard() {
   window.statCardActions = cards.map(card=>card.action||null);
 
   // EOL banner
-  const expiringSoon = recent.filter(a => !a.eolOverride && eolStatus(a.endOfLife) !== null);
-  const critical     = expiringSoon.filter(a => !a.eolOverride && eolStatus(a.endOfLife) === 'critical');
+  const expiringSoon = recent.filter(a => a.status !== 'retired' && eolStatus(a.endOfLife) !== null);
+  const critical     = expiringSoon.filter(a => eolStatus(a.endOfLife) === 'critical');
   const banner = document.getElementById('eol-banner-dash');
   if (critical.length) {
     banner.innerHTML = `<div class="eol-banner" onclick="goToAssets({status:'eol'})" style="cursor:pointer"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg> ${critical.length} asset${critical.length>1?'s':''} past end of life — replacement overdue <span style="font-weight:700;opacity:0.7;margin-left:4px">View →</span></div>`;
@@ -2071,12 +2068,12 @@ async function loadAssets() {
       <td><div style="font-weight:600">${esc(a.name)}</div>${a.dept?`<div style="font-size:11px;color:var(--muted)">${esc(a.dept)}</div>`:''}</td>
       <td>${typeBadge(a.type)}</td>
       <td class="font-mono">${esc(a.serial)||'<span style="color:var(--muted)">—</span>'}</td>
-      <td>${a.assignedTo||'<span style="color:var(--muted)">Unassigned</span>'}</td>
+      <td>${a.assignedTo?esc(a.assignedTo):'<span style="color:var(--muted)">Unassigned</span>'}</td>
       <td class="font-mono">${a.purchaseDate||'—'}</td>
       <td class="font-mono" style="${eolStatus(a.endOfLife)==='critical'?'color:var(--red)':eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'—'} ${eolFlag(a.endOfLife)||''}</td>
       <td class="font-mono">${a.cost?'$'+Number(a.cost).toLocaleString():'—'}</td>
       <td><div class="tbl-actions">
-        <button class="tbl-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">QR</button>
+        <button class="tbl-btn" onclick="showQR(${jsArg(a.id)},${jsArg(a.name)},${jsArg(a.serial)})">QR</button>
         <button class="tbl-btn" onclick="editAsset('${esc(a.id)}')">Edit</button>
         <button class="tbl-btn danger" onclick="deleteAsset('${esc(a.id)}')">Del</button>
       </div></td>
@@ -2084,21 +2081,10 @@ async function loadAssets() {
 }
 
 
-function eolMenuHtml(id, eolOverride, isEolActive) {
-  if (!eolOverride && !isEolActive) return '';
-  const cls  = eolOverride ? 'eol-clear' : 'eol-ack';
-  const icon = eolOverride
-    ? '<path d="M18 6 6 18M6 6l12 12"/>'
-    : '<polyline points="20 6 9 17 4 12"/>';
-  const label = eolOverride ? 'Remove EOL Override' : 'Acknowledge EOL';
-  return `<div class="card-menu-item ${cls}" onclick="toggleEolOverride('${esc(id)}');closeCardMenu('${esc(id)}')">` +
-    `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${icon}</svg>${label}</div>`;
-}
-
 function assetCard(a) {
-  const flag    = eolFlag(a.endOfLife, a.eolOverride);
+  const flag    = eolFlag(a.endOfLife);
   const retired = a.status === 'retired';
-  const isEolActive = !a.eolOverride && eolStatus(a.endOfLife);
+  const isEolActive = eolStatus(a.endOfLife);
   const cardStyle = retired ? 'opacity:0.55;' : isEolActive === 'critical' ? 'border-color:rgba(255,59,92,0.35)' : isEolActive === 'warning' ? 'border-color:rgba(255,140,0,0.35)' : '';
   return `<div class="asset-card" id="card-${esc(a.id)}" onmousemove="cardMove(event,this)" onmouseleave="cardLeave(this)" style="${cardStyle}">
     <div class="card-spotlight"></div>
@@ -2119,11 +2105,11 @@ function assetCard(a) {
       <div class="asset-card-field"><label>Assigned To</label><span>${a.assignedTo?esc(a.assignedTo):'<span style="color:var(--muted)">Unassigned</span>'}</span></div>
       <div class="asset-card-field"><label>Department</label><span>${a.dept?esc(a.dept):'<span style="color:var(--muted)">—</span>'}</span></div>
       <div class="asset-card-field"><label>Purchase Date</label><span>${a.purchaseDate||'<span style="color:var(--muted)">—</span>'}</span></div>
-      <div class="asset-card-field"><label>End of Life</label><span style="${!a.eolOverride&&eolStatus(a.endOfLife)==='critical'?'color:var(--red)':!a.eolOverride&&eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
+      <div class="asset-card-field"><label>End of Life</label><span style="${eolStatus(a.endOfLife)==='critical'?'color:var(--red)':eolStatus(a.endOfLife)==='warning'?'color:var(--orange)':''}">${a.endOfLife||'<span style="color:var(--muted)">—</span>'}</span></div>
       ${renderCustomFieldChips(a.id, a.type)}
     </div>
     <div class="asset-card-actions">
-      <button class="card-action-btn qr-btn" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">
+      <button class="card-action-btn qr-btn" onclick="showQR(${jsArg(a.id)},${jsArg(a.name)},${jsArg(a.serial)})">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="0.5"/><rect x="16" y="3" width="5" height="5" rx="0.5"/><rect x="3" y="16" width="5" height="5" rx="0.5"/><path d="M16 16h5M16 21h5M21 16v5M16 11h5v2"/></svg>
         QR
       </button>
@@ -2135,7 +2121,6 @@ function assetCard(a) {
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
       </button>
       <div class="card-more-menu" id="card-menu-${esc(a.id)}">
-        ${eolMenuHtml(a.id, a.eolOverride, isEolActive)}
         <div class="card-menu-item" onclick="showAssetLog('${esc(a.id)}');closeCardMenu('${esc(a.id)}')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           View History
@@ -2256,22 +2241,6 @@ async function batchDelete() {
   loadAssets();
 }
 
-async function batchArchive() {
-  const ids = [...selectedIds];
-  if (!ids.length) return;
-  if (!confirm(`Archive ${ids.length} asset${ids.length>1?"s":""}? They can be restored from the Archive page.`)) return;
-  let done = 0, failed = 0;
-  for (const id of ids) {
-    try {
-      await apiFetch(API + "?archive=1", { method: "PUT", body: JSON.stringify({ id }) });
-      done++;
-    } catch { failed++; }
-  }
-  toast(`Archived ${done} asset${done>1?"s":""}${failed ? " ("+failed+" failed)" : ""}`, done ? "success" : "error");
-  cancelBatchMode();
-  loadAssets();
-  loadDashboard();
-}
 
 async function batchEstimate() {
   const ids    = [...selectedIds];
@@ -2332,30 +2301,6 @@ async function batchEstimate() {
   }, 1500);
 }
 
-async function toggleEolOverride(id) {
-  const asset = cachedAssets.find(a => a.id === id);
-  if (!asset) return;
-  const newOverride = !asset.eolOverride;
-
-  try {
-    await apiFetch(API, {
-      method: 'PUT',
-      body: JSON.stringify({
-        id: asset.id, name: asset.name, type: asset.type, serial: asset.serial,
-        assigned_to: asset.assignedTo, department: asset.dept, status: asset.status,
-        purchase_date: asset.purchaseDate, end_of_life: asset.endOfLife,
-        cost: asset.cost, notes: asset.notes, eol_override: newOverride ? 1 : 0
-      })
-    });
-    // Update local cache after confirmed save
-    asset.eolOverride = newOverride;
-    toast(newOverride ? 'EOL warning acknowledged' : 'EOL override removed', 'success');
-    await loadAssets();
-    loadDashboard();
-  } catch(e) {
-    toast('Failed to update EOL override', 'error');
-  }
-}
 
 
 
@@ -2412,7 +2357,7 @@ function logEntryHtml(log) {
     fieldsHtml = `<div class="audit-rows">${rows}</div>`;
   }
   const nameLink = action !== 'deleted'
-    ? `<a href="#" onclick="event.preventDefault();showPage('assets');setTimeout(()=>openEditModal('${esc(log.assetId)}'),300)">${esc(log.assetName)}</a>`
+    ? `<a href="#" onclick="event.preventDefault();showPage('assets');editAsset(${jsArg(log.assetId)})">${esc(log.assetName)}</a>`
     : `<span>${esc(log.assetName)}</span>`;
   return `<div class="log-entry">
     <div class="log-icon ${action}">${icon}</div>
@@ -2562,7 +2507,7 @@ function initSettingsCollapse() {
   document.querySelectorAll('.settings-section').forEach(section => {
     const titleEl = section.querySelector('.settings-section-title');
     const bodyEl  = section.querySelector('.settings-section-body');
-    if (!titleEl || !bodyEl) return;
+    if (!titleEl || !bodyEl || titleEl.classList.contains('settings-section-toggle')) return;
     // Measure and store natural height
     bodyEl.style.maxHeight = bodyEl.scrollHeight + 'px';
     // Make title a toggle
@@ -2583,7 +2528,7 @@ function wrapSettingsBodies() {
   document.querySelectorAll('.settings-section').forEach(section => {
     const title = section.querySelector('.settings-section-title');
     const sub   = section.querySelector('.settings-section-sub');
-    if (!title) return;
+    if (!title || section.querySelector('.settings-section-body')) return;
     // Find all children after the title/sub
     const children = Array.from(section.children);
     const startIdx = children.indexOf(sub || title) + 1;
@@ -2606,7 +2551,7 @@ async function loadSettings() {
     if (dy) dy.value = s['depreciation_years'] || '5';
     // Anthropic API key
     const ak = document.getElementById('setting-anthropic-key');
-    if (ak) ak.placeholder = s['anthropic_api_key'] ? 'sk-ant-… (configured — paste to replace)' : 'sk-ant-…';
+    if (ak) ak.placeholder = s['anthropic_api_key_configured'] ? 'sk-ant-… (configured — paste to replace)' : 'sk-ant-…';
     // Threshold fields
     const wrap = document.getElementById('threshold-fields');
     if (wrap) {
@@ -2615,7 +2560,7 @@ async function loadSettings() {
         const val = s[key] ?? '1';
         return `<div class="threshold-field">
           <label>${type}</label>
-          <input type="number" min="0" max="50" value="${val}" id="thr-${key}" data-key="${key}">
+          <input type="number" min="0" max="50" value="${esc(val)}" id="thr-${key}" data-key="${key}">
         </div>`;
       }).join('');
     }
@@ -2689,8 +2634,7 @@ async function loadReports() {
         : null;
       const eolDate  = a.endOfLife ? new Date(a.endOfLife) : null;
       const msToEol  = eolDate ? eolDate.getTime() - now : null;
-      const eolStatus = a.eolOverride ? 'acknowledged'
-        : !eolDate ? 'unknown'
+      const eolStatus = !eolDate ? 'unknown'
         : msToEol < 0 ? 'expired'
         : msToEol < 1000*60*60*24*180 ? 'critical'
         : msToEol < 1000*60*60*24*365 ? 'warning'
@@ -2701,7 +2645,7 @@ async function loadReports() {
     renderSummaryCards(annotated);
     renderByDept(annotated);
     renderByType(annotated);
-    renderDepreciation(annotated);
+    renderDepreciation(annotated, deprYears);
     renderEol(annotated);
   } catch(e) { console.error(e); }
 }
@@ -2777,7 +2721,7 @@ function renderByType(assets) {
   </table>`;
 }
 
-function renderDepreciation(assets) {
+function renderDepreciation(assets, deprYears) {
   const withCost = assets.filter(a=>!a.archived&&a.status!=='retired'&&a.cost>0&&a.purchaseDate)
     .sort((a,b)=>(a.currentValue??0)-(b.currentValue??0));
   if (!withCost.length) { document.getElementById('report-depreciation').innerHTML='<p style="padding:14px;color:var(--muted);font-size:13px">No assets with cost + purchase date set</p>'; return; }
@@ -2785,7 +2729,7 @@ function renderDepreciation(assets) {
     <thead><tr><th>Asset</th><th>Type</th><th class="num">Original</th><th class="num">Current Value</th><th class="num">Depreciated</th><th>Remaining Life</th></tr></thead>
     <tbody>${withCost.slice(0,50).map(a=>{
       const pct = a.deprPct ?? 0;
-      const remaining = a.ageYears != null ? Math.max(0, 5 - a.ageYears) : null;
+      const remaining = a.ageYears != null ? Math.max(0, deprYears - a.ageYears) : null;
       const remStr = remaining != null ? (remaining < 0.1 ? 'Fully depreciated' : remaining.toFixed(1) + ' yrs') : '—';
 
       return `<tr>
@@ -2850,8 +2794,7 @@ async function exportCSV() {
       const currentValue = ageYears !== null ? Math.max(0, cost * (1 - ageYears / deprYears)) : null;
       const eolDate = a.endOfLife ? new Date(a.endOfLife) : null;
       const msToEol = eolDate ? eolDate.getTime() - now : null;
-      const eolStatus = a.eolOverride ? 'Acknowledged'
-        : !eolDate ? 'Unknown'
+      const eolStatus = !eolDate ? 'Unknown'
         : msToEol < 0 ? 'Expired'
         : msToEol < 1000*60*60*24*180 ? 'Critical'
         : msToEol < 1000*60*60*24*365 ? 'Warning' : 'OK';
@@ -2870,7 +2813,7 @@ async function exportCSV() {
     ]);
 
     const csvContent = [headers, ...rows].map(row =>
-      row.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')
+      row.map(csvCell).join(',')
     ).join('\n');
 
     const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
@@ -3328,7 +3271,6 @@ function openAddModal(){
   document.getElementById('f-date').value='';
   document.getElementById('f-eol').value='';
   document.getElementById('f-cost').value='';
-  document.getElementById('f-eol-override').checked = false;
   document.getElementById('serial-dupe-warn').style.display = 'none';
   document.getElementById('save-btn').textContent='Save Asset';
   document.getElementById('asset-modal').classList.add('open');
@@ -3350,7 +3292,6 @@ async function editAsset(id){
   document.getElementById('f-eol').value=a.endOfLife||'';
   document.getElementById('f-cost').value=a.cost||'';
   document.getElementById('f-notes').value=a.notes||'';
-  document.getElementById('f-eol-override').checked=!!a.eolOverride;
   document.getElementById('f-asset-num').value=a.id||'';
   document.getElementById('f-asset-num-hint').style.display='none';
   loadCustomFieldsForModal(a.type, a.id);
@@ -3472,8 +3413,7 @@ async function saveAsset(){
     purchase_date:document.getElementById('f-date').value||null,
     end_of_life:document.getElementById('f-eol').value||null,
     cost:document.getElementById('f-cost').value||null,
-    notes:document.getElementById('f-notes').value.trim(),
-    eol_override:document.getElementById('f-eol-override').checked};
+    notes:document.getElementById('f-notes').value.trim()};
   if (!editingId && assetNum) payload.custom_id = assetNum;
   if (editingId && assetNum && assetNum !== editingId) payload.new_id = assetNum;
   try{
@@ -3580,7 +3520,7 @@ async function onScanSuccess(decoded){
       </div>
       <div style="display:flex;gap:8px;margin-top:4px">
         <button class="btn btn-primary" style="font-size:13px;min-height:44px" onclick="editAsset('${esc(a.id)}');showPage('assets')">Edit Asset</button>
-        <button class="btn btn-ghost" style="font-size:13px;min-height:44px" onclick="showQR('${esc(a.id)}','${esc(a.name)}','${esc(a.serial||'')}')">Show QR</button>
+        <button class="btn btn-ghost" style="font-size:13px;min-height:44px" onclick="showQR(${jsArg(a.id)},${jsArg(a.name)},${jsArg(a.serial)})">Show QR</button>
       </div>`;
   }catch{
     el.className='scan-result visible';
@@ -3635,10 +3575,10 @@ function stopSerialScanner(){
   if(btn){btn.style.borderColor='';btn.style.color='';btn.style.background='';}
 }
 
-async function exportCSV(){
+async function exportAssetCSV(){
   const assets=await apiFetch(API);
   const h=['Asset ID','Name','Type','Serial','Assigned To','Department','Purchase Date','Cost','Notes'];
-  const rows=assets.map(a=>[a.id,a.name,a.type,a.serial,a.assignedTo,a.dept,a.purchaseDate,a.cost,a.notes].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`));
+  const rows=assets.map(a=>[a.id,a.name,a.type,a.serial,a.assignedTo,a.dept,a.purchaseDate,a.cost,a.notes].map(csvCell));
   const csv=[h.join(','),...rows.map(r=>r.join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   const el=document.createElement('a');el.href=url;el.download='assets-export.csv';el.click();URL.revokeObjectURL(url);
@@ -3688,8 +3628,7 @@ function autoSetEOL(){
 }
 
 // Returns 'critical' (past or within 3mo), 'warning' (within 12mo), or null
-function eolStatus(eolDate, override=false) {
-  if (override) return 'override';
+function eolStatus(eolDate) {
   if (!eolDate) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   const eol   = new Date(eolDate);
@@ -3701,8 +3640,7 @@ function eolStatus(eolDate, override=false) {
 }
 
 // Returns a flag badge HTML string or null
-function eolFlag(eolDate, override=false) {
-  if (override) return `<span class="flag-override">✓ EOL Acknowledged</span>`;
+function eolFlag(eolDate) {
   const s = eolStatus(eolDate);
   if (!s) return null;
   if (s === 'critical') {
@@ -3714,6 +3652,12 @@ function eolFlag(eolDate, override=false) {
 }
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function jsArg(value){return esc(JSON.stringify(String(value ?? '')));}
+function csvCell(value){
+  let text = String(value ?? '');
+  if (/^[=+\-@\t\r\n]/.test(text)) text = "'" + text;
+  return '"' + text.replace(/"/g, '""') + '"';
+}
 function typeBadge(t){return `<span class="badge ${T[t]||'badge-laptop'}">${esc(t)}</span>`;}
 function statusBadge(assignedTo, status) {
   if (status === 'retired') return '<span class="badge badge-retired">Retired</span>';
@@ -3813,7 +3757,7 @@ function renderUserCards(users) {
   el.innerHTML = users.map(u => {
     const initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const hasFlags=u.assets.some(a=>eolStatus(a.endOfLife)!==null);
-    return `<div class="user-card" onclick="openUserModal('${esc(u.name)}')">
+    return `<div class="user-card" onclick="openUserModal(${jsArg(u.name)})">
       <div class="user-card-header">
         <div class="user-avatar">${esc(initials)}</div>
         <div style="flex:1;min-width:0">
@@ -3833,7 +3777,7 @@ function renderDeptCards(depts) {
   el.innerHTML = depts.map(d => {
     const color=DEPT_COLORS[d.name]||'#5a6070';
     const hasFlags=d.assets.some(a=>eolStatus(a.endOfLife)!==null);
-    return `<div class="user-card" onclick="openDeptModal('${esc(d.name)}')">
+    return `<div class="user-card" onclick="openDeptModal(${jsArg(d.name)})">
       <div class="user-card-header">
         <div class="user-avatar" style="background:linear-gradient(135deg,${color}22,${color}44);border:1px solid ${color}33;color:${color}">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>

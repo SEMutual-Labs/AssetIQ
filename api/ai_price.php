@@ -86,11 +86,24 @@ if ($httpCode !== 200) {
     exit;
 }
 
+function validEstimate(mixed $estimate): bool {
+    if (!is_array($estimate)) return false;
+    foreach (['low', 'high', 'midpoint'] as $field) {
+        $value = $estimate[$field] ?? null;
+        if ((!is_int($value) && !is_float($value)) || !is_finite((float)$value) || $value < 0) return false;
+    }
+    return $estimate['low'] <= $estimate['midpoint'] && $estimate['midpoint'] <= $estimate['high']
+        && is_string($estimate['currency'] ?? null)
+        && in_array($estimate['confidence'] ?? '', ['high', 'medium', 'low'], true)
+        && is_string($estimate['reasoning'] ?? null)
+        && (!isset($estimate['caveat']) || is_string($estimate['caveat']));
+}
+
 $text  = $data['content'][0]['text'] ?? '';
 preg_match('/\{.*\}/s', $text, $jsonMatch);
 $est   = $jsonMatch ? json_decode($jsonMatch[0], true) : null;
 
-if (!$est || !isset($est['low'])) {
+if (!validEstimate($est)) {
     http_response_code(502);
     echo json_encode(['error' => 'Could not parse price estimate']);
     exit;

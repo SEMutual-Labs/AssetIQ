@@ -18,6 +18,14 @@ function respond(mixed $data, int $code = 200): void {
     http_response_code($code); echo json_encode($data); exit;
 }
 
+function publicSettings(array $settings): array {
+    $settings['anthropic_api_key_configured'] =
+        (defined('ANTHROPIC_API_KEY') && ANTHROPIC_API_KEY !== '') ||
+        !empty($settings['anthropic_api_key']);
+    unset($settings['anthropic_api_key']);
+    return $settings;
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Seed defaults if not present
@@ -82,7 +90,7 @@ if ($method === 'GET') {
     $rows = $db->query("SELECT `key`,`value` FROM settings")->fetchAll();
     $out = [];
     foreach ($rows as $r) $out[$r['key']] = $r['value'];
-    respond($out);
+    respond(publicSettings($out));
 }
 
 // Allowed setting keys — reject anything not in this list

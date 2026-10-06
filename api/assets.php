@@ -39,7 +39,6 @@ function sanitizeAsset(array $d): array {
         'end_of_life'   => sanitizeDate($d['end_of_life']   ?? null),
         'cost'          => isset($d['cost']) && $d['cost'] !== '' ? (float)$d['cost'] : null,
         'notes'         => trim($d['notes'] ?? ''),
-        'eol_override'  => isset($d['eol_override']) ? (int)(bool)$d['eol_override'] : 0,
     ];
 }
 function validateAssetId(string $id): bool {
@@ -54,9 +53,8 @@ function nextId(PDO $db, string $type = ''): string {
     // REGEXP ensures a digit immediately follows the prefix, preventing e.g.
     // 'SEM-P' from matching printer IDs like 'SEM-PR01'.
     // Camera also matches legacy 'SEM-CAM01' (no dash) so old assets count correctly.
-    // Only active assets are counted so retired/old assets don't push the counter up.
     $pattern = strtolower($type) === 'camera' ? '^SEM-CAM-?[0-9]' : '^' . $prefix . '[0-9]';
-    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ? AND status != 'retired'");
+    $stmt = $db->prepare("SELECT id FROM assets WHERE id REGEXP ?");
     $stmt->execute([$pattern]);
     $max = 0;
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id)
@@ -70,7 +68,6 @@ function rowToAsset(array $r): array {
         'assignedTo'  => $r['assigned_to'], 'dept'        => $r['department'],
         'status'      => $r['status'] ?? 'active',
         'purchaseDate'=> $r['purchase_date'], 'endOfLife' => $r['end_of_life'],
-        'eolOverride' => !empty($r['eol_override']),
         'archived'    => !empty($r['archived']),
         'archivedAt'  => $r['archived_at'] ?? null,
         'cost'        => $r['cost'],        'notes'       => $r['notes'],
@@ -85,7 +82,7 @@ function writeLog(PDO $db, string $assetId, string $assetName, string $action, a
        ->execute([$assetId, $assetName, $action, empty($changed) ? null : json_encode($changed), $actor, $ip]);
 }
 function diffFields(array $old, array $new): array {
-    $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost','notes','eol_override'];
+    $track = ['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost','notes'];
     $changed = [];
     foreach ($track as $f) {
         $ov = (string)($old[$f] ?? '');
@@ -242,7 +239,7 @@ if ($method === 'POST') {
         $id = nextId($db, $d['type']??'');
     }
     $s = sanitizeAsset($d);
-    $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes,eol_override) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes,:eol_override)")
+    $db->prepare("INSERT INTO assets (id,name,type,serial,assigned_to,department,status,purchase_date,end_of_life,cost,notes) VALUES (:id,:name,:type,:serial,:assigned_to,:department,:status,:purchase_date,:end_of_life,:cost,:notes)")
        ->execute(array_merge(['id'=>$id],$s));
     $initVals = [];
     foreach (['name','type','serial','assigned_to','department','status','purchase_date','end_of_life','cost'] as $f)
@@ -296,7 +293,7 @@ if ($method === 'PUT') {
         }
     }
     $s = sanitizeAsset($d); $diff = diffFields($old,$s);
-    $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes,eol_override=:eol_override WHERE id=:id")
+    $db->prepare("UPDATE assets SET name=:name,type=:type,serial=:serial,assigned_to=:assigned_to,department=:department,status=:status,purchase_date=:purchase_date,end_of_life=:end_of_life,cost=:cost,notes=:notes WHERE id=:id")
        ->execute(array_merge(['id'=>$workingId],$s));
     if (!empty($diff)) writeLog($db,$workingId,$s['name'],'updated',$diff,$actor);
     $sel = $db->prepare("SELECT * FROM assets WHERE id=?"); $sel->execute([$workingId]);

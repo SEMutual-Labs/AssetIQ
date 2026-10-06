@@ -42,7 +42,6 @@ function installSchema(): void {
     // ── Migration patches (idempotent) ────────────────────────────
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS end_of_life  DATE        DEFAULT NULL       AFTER purchase_date");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS status       VARCHAR(20) DEFAULT 'active'   AFTER department");
-    $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS eol_override TINYINT(1)  NOT NULL DEFAULT 0");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived     TINYINT(1)  NOT NULL DEFAULT 0");
     $db->exec("ALTER TABLE assets ADD COLUMN IF NOT EXISTS archived_at  DATETIME    NULL");
 

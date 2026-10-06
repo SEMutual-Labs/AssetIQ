@@ -77,7 +77,8 @@ if ($method === 'DELETE' && isset($_GET['id'])) {
     $stmt->execute([$_GET['id']]);
     $def = $stmt->fetch();
     if (!$def) respond(['error' => 'Not found'], 404);
-    $db->prepare("DELETE FROM custom_field_values WHERE field_key = ?")->execute([$def['field_key']]);
+     $db->prepare("DELETE v FROM custom_field_values v JOIN assets a ON a.id = v.asset_id WHERE v.field_key = ? AND a.type = ?")
+         ->execute([$def['field_key'], $def['asset_type']]);
     $db->prepare("DELETE FROM custom_field_defs WHERE id = ?")->execute([$_GET['id']]);
     respond(['deleted' => true]);
 }
