@@ -190,6 +190,27 @@ not inferred from spaces in display names. Missing, ambiguous, read-only,
 rich-text, or unsupported mapped columns fail explicitly. Invalid choices,
 overlong text, or invalid dates/prices block the entire affected row.
 
+If a display name differs from what Graph returns, an explicit internal-name
+mapping can be configured in the private settings file. For this Asset Register,
+the Asset ID column-edit URL contains `Field=Title`, confirming that its internal
+name is `Title`. Configure:
+
+```php
+define('SHAREPOINT_COLUMN_MAP', [
+    'id' => 'Title',
+]);
+```
+
+This requires the updated SharePoint API files that support `SHAREPOINT_COLUMN_MAP`.
+It does not rename SharePoint columns. Other mappings still use discovered display
+names unless explicitly overridden. Verify the configured list GUID is
+`f7197dfe-ed51-4844-8af0-c1f891e42b9b` if `SHAREPOINT_LIST_ID` is set; this identifies
+the list from the supplied column-edit URL. A renamed Title column alone does not
+explain a display-name mismatch, so also confirm that the configured list is correct.
+Overrides use AssetIQ field keys (such as `id`, `serial`, or `assigned_to`) and exact
+SharePoint internal names, never guessed encoded labels. Invalid, missing, duplicate,
+or incompatible mapping targets fail explicitly.
+
 SharePoint statuses such as **In storage**, **Lost**, and **repair** are preserved,
 even when AssetIQ says active or retired. Empty AssetIQ values preserve existing
 SharePoint values and appear as warnings; this version does not clear fields.

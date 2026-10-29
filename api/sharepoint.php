@@ -35,7 +35,9 @@ try {
         unset($_SESSION['sharepoint_preview']);
         $graph = new SharePointGraph();
         $listPath = $graph->listPath();
-        $columns = sharepointColumns($graph->collection($listPath . '/columns'));
+        $columnMap = defined('SHAREPOINT_COLUMN_MAP') ? SHAREPOINT_COLUMN_MAP : [];
+        if (!is_array($columnMap)) throw new RuntimeException('SHAREPOINT_COLUMN_MAP must be an array.');
+        $columns = sharepointColumns($graph->collection($listPath . '/columns'), $columnMap);
         $items = $graph->collection($listPath . '/items?$expand=fields&$top=200');
         $assets = $db->query($select . ' WHERE COALESCE(archived,0)=0 ORDER BY id')->fetchAll();
         $valueMaps = defined('SHAREPOINT_VALUE_MAPS') ? SHAREPOINT_VALUE_MAPS : [];

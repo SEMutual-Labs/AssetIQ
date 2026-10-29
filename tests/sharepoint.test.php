@@ -71,6 +71,24 @@ $invalidColumns = $definitions;
 $invalidColumns[3]['readOnly'] = true;
 rejects(fn() => sharepointColumns($invalidColumns), 'Read-only destinations are rejected');
 
+$titleDefinitions = $definitions;
+$titleDefinitions[0]['name'] = 'Title';
+$titleDefinitions[0]['displayName'] = 'Title';
+$titleColumns = sharepointColumns($titleDefinitions, ['id' => 'Title']);
+check($titleColumns['id']['name'] === 'Title', 'Explicit internal-name mapping supports renamed built-in Title columns');
+rejects(fn() => sharepointColumns($titleDefinitions), 'Title is never silently assumed to contain Asset IDs');
+$titleItem = ['id' => '43', 'eTag' => '"1"', 'fields' => array_merge($fields, ['Title' => 'SEM-NB01', 'internal_serial' => 'OLD'])];
+$titleRow = sharepointPreview([$asset], [$titleItem], $titleColumns)[0];
+check($titleRow['status'] === 'ready' && $titleRow['itemId'] === '43', 'Preview matches AssetIQ IDs against the configured Title field');
+check(!array_key_exists('Title', $titleRow['patch']), 'Configured Asset ID column remains match-only');
+rejects(fn() => sharepointColumns($titleDefinitions, ['id' => 'DoesNotExist']), 'Incorrect explicit names fail without falling back to another column');
+rejects(fn() => sharepointColumns($definitions, ['typo' => 'Title']), 'Unknown source keys in column mappings fail explicitly');
+rejects(fn() => sharepointColumns($definitions, ['id' => '']), 'Blank internal-name mappings are rejected');
+rejects(fn() => sharepointColumns($definitions, ['id' => 123]), 'Non-text internal-name mappings are rejected');
+rejects(fn() => sharepointColumns($definitions, ['serial' => 'internal_id']), 'Duplicate mapping targets are rejected');
+$titleDefinitions[0]['readOnly'] = true;
+rejects(fn() => sharepointColumns($titleDefinitions, ['id' => 'Title']), 'Explicit mappings retain column safety validation');
+
 $item = ['id' => '42', 'eTag' => '"version-1"', 'fields' => array_replace($fields, ['internal_serial' => 'OLD', 'internal_id' => ' sem-nb01 '])];
 $rows = sharepointPreview([$asset, array_replace($asset, ['id' => 'SEM-NB02'])], [$item], $columns);
 check($rows[0]['status'] === 'ready' && $rows[1]['status'] === 'unmatched', 'Matching uses normalized Asset ID; unmatched assets are never created');

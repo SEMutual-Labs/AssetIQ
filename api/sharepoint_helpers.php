@@ -119,11 +119,23 @@ function sharepointMapping(): array {
     ];
 }
 
-function sharepointColumns(array $definitions): array {
+function sharepointColumns(array $definitions, array $columnMap = []): array {
     $columns = [];
+    foreach ($columnMap as $source => $name) {
+        if (!array_key_exists($source, sharepointMapping()) || !is_string($name) || trim($name) === '') {
+            throw new RuntimeException('SHAREPOINT_COLUMN_MAP must map supported AssetIQ field keys to nonempty SharePoint internal names.');
+        }
+    }
+    $used = [];
     foreach (sharepointMapping() as $source => [$label, $kind]) {
-        $matches = array_values(array_filter($definitions, fn(array $column): bool => ($column['displayName'] ?? '') === $label));
-        if (count($matches) !== 1) throw new RuntimeException('Missing or ambiguous SharePoint column: ' . $label);
+        $internalName = $columnMap[$source] ?? null;
+        $matches = array_values(array_filter($definitions, fn(array $column): bool => $internalName !== null
+            ? ($column['name'] ?? '') === $internalName
+            : ($column['displayName'] ?? '') === $label));
+        if (count($matches) !== 1) {
+            throw new RuntimeException('Missing or ambiguous SharePoint column: ' . $label
+                . ($internalName !== null ? ' (configured internal name: ' . $internalName . ').' : '. Configure SHAREPOINT_COLUMN_MAP with the verified internal name if the display label differs.'));
+        }
         $column = $matches[0];
         if (empty($column['name']) || !isset($column[$kind]) || !empty($column['readOnly']) || isset($column['calculated'])) {
             throw new RuntimeException('SharePoint column has an unsupported type or is read-only: ' . $label);
@@ -134,6 +146,8 @@ function sharepointColumns(array $definitions): array {
         if ($kind === 'text' && !empty($column['text']['allowMultipleLines']) && ($column['text']['textType'] ?? 'plain') !== 'plain') {
             throw new RuntimeException('Rich-text SharePoint columns are not supported: ' . $label);
         }
+        if (isset($used[$column['name']])) throw new RuntimeException('Multiple AssetIQ fields target the same SharePoint column: ' . $column['name']);
+        $used[$column['name']] = true;
         $columns[$source] = $column;
     }
     return $columns;
