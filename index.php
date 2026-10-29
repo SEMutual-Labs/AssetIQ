@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth/auth.php';
 auth_require();
 $user = auth_user();
+if (!isset($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(32));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -2319,6 +2320,7 @@ const LOG_ICONS = {
 const LOG_LABELS = {
   created: 'Created',  updated: 'Updated',
   archived: 'Archived', restored: 'Restored', deleted: 'Deleted',
+  sharepoint_sync: 'Synced to SharePoint',
 };
 
 const FIELD_LABELS = {
@@ -2538,6 +2540,86 @@ function wrapSettingsBodies() {
     children.slice(startIdx).forEach(child => body.appendChild(child));
     section.appendChild(body);
   });
+}
+
+const SHAREPOINT_CSRF = <?= json_encode($_SESSION['sharepoint_csrf']) ?>;
+let sharepointPlan = null;
+let sharepointBusy = false;
+
+function renderSharePointPreview() {
+  const output = document.getElementById('sharepoint-output');
+  if (!sharepointPlan) return;
+  const rows = sharepointPlan.rows;
+  output.innerHTML = `<p>${rows.filter(r => r.status === 'ready').length} ready, ${rows.filter(r => r.status === 'unchanged').length} unchanged, ${rows.filter(r => r.status === 'unmatched').length} unmatched, ${rows.filter(r => r.status === 'blocked').length} blocked. Preview expires in 15 minutes. Last Updated is set to the sync time on successful writes.</p>` +
+    rows.map((row, i) => `<details style="margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:8px">
+      <summary>${row.status === 'ready' ? `<input type="checkbox" class="sharepoint-select" data-index="${i}" checked aria-label="Select ${esc(row.assetId)}"> ` : ''}${esc(row.assetId)} - ${esc(row.status)}</summary>
+      ${row.error ? `<p>${esc(row.error)}</p>` : ''}
+      ${row.status === 'unmatched' ? '<p>No matching SharePoint Asset ID. No item will be created.</p>' : ''}
+      ${row.changes.map(c => `<div style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere"><strong>${esc(c.column)}</strong>: ${esc(String(c.before ?? '(empty)'))} &rarr; ${esc(String(c.after))}</div>`).join('')}
+      ${row.warnings.map(w => `<p style="color:var(--muted)">${esc(w)}</p>`).join('')}
+      <p id="sharepoint-result-${i}" role="status"></p>
+    </details>`).join('');
+  document.getElementById('sharepoint-apply').disabled = !rows.some(r => r.status === 'ready');
+}
+
+async function previewSharePoint() {
+  if (sharepointBusy) return;
+  sharepointBusy = true;
+  sharepointPlan = null;
+  const button = document.getElementById('sharepoint-preview');
+  button.disabled = true;
+  document.getElementById('sharepoint-apply').disabled = true;
+  const output = document.getElementById('sharepoint-output');
+  output.textContent = 'Reading SharePoint column definitions and inventory. No writes are being made...';
+  try {
+    sharepointPlan = await apiFetch('api/sharepoint.php', {method:'POST', body:JSON.stringify({action:'preview', csrf:SHAREPOINT_CSRF})});
+    renderSharePointPreview();
+  } catch (error) {
+    output.textContent = error.message;
+  } finally {
+    sharepointBusy = false;
+    button.disabled = false;
+  }
+}
+
+async function applySharePoint() {
+  if (sharepointBusy || !sharepointPlan) return;
+  const selected = Array.from(document.querySelectorAll('.sharepoint-select:checked')).map(el => Number(el.dataset.index));
+  if (!selected.length) { toast('Select at least one ready asset.', 'error'); return; }
+  if (!confirm(`Update ${selected.length} existing SharePoint item(s) using the previewed values? No items will be created or deleted.`)) return;
+  sharepointBusy = true;
+  document.getElementById('sharepoint-preview').disabled = true;
+  document.getElementById('sharepoint-apply').disabled = true;
+  document.querySelectorAll('.sharepoint-select').forEach(el => { el.disabled = true; });
+  let updated = 0;
+  let failed = 0;
+  try {
+    for (const index of selected) {
+      const row = sharepointPlan.rows[index];
+      const result = document.getElementById(`sharepoint-result-${index}`);
+      result.textContent = 'Updating...';
+      try {
+        await apiFetch('api/sharepoint.php', {method:'POST', body:JSON.stringify({
+          action:'apply', csrf:SHAREPOINT_CSRF, previewId:sharepointPlan.previewId, assetId:row.assetId,
+        })});
+        result.textContent = 'Updated successfully.';
+        updated++;
+      } catch (error) {
+        result.textContent = error.message;
+        failed++;
+        if (authRedirectPending) break;
+      }
+    }
+    const summary = document.createElement('p');
+    summary.setAttribute('role', 'status');
+    summary.textContent = `${updated} updated, ${failed} failed. Generate a new preview before any further writes.`;
+    document.getElementById('sharepoint-output').prepend(summary);
+    toast(summary.textContent, failed ? 'error' : 'success');
+  } finally {
+    sharepointPlan = null;
+    sharepointBusy = false;
+    document.getElementById('sharepoint-preview').disabled = false;
+  }
 }
 
 async function loadSettings() {
@@ -4078,6 +4160,7 @@ _sObs.observe(document.body,{childList:true,subtree:true});
         <option value="">All actions</option>
         <option value="created">Created</option>
         <option value="updated">Updated</option>
+        <option value="sharepoint_sync">Synced to SharePoint</option>
         <option value="id_changed">ID Changed</option>
         <option value="deleted">Deleted</option>
       </select>
@@ -4148,6 +4231,16 @@ _sObs.observe(document.body,{childList:true,subtree:true});
   <h1 class="page-title">Settings</h1>
   <p style="color:var(--muted);font-size:14px;margin-top:-8px;margin-bottom:20px">Configure alerts and system preferences</p>
   <div id="settings-tab-general">
+  <div class="settings-section">
+    <h2 class="settings-section-title">SharePoint Inventory Sync</h2>
+    <p class="settings-section-sub">Translate AssetIQ fields into existing Asset Register rows, matched by Asset ID. Preview only until you explicitly apply selected updates.</p>
+    <p style="margin:12px 0;font-size:13px;color:var(--muted)">Name maps to Make/Model. Empty values and SharePoint-only statuses are preserved. Choice values must match the list or a configured translation. Prices are copied without currency conversion. Calculated and unmapped columns are not written.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-ghost" id="sharepoint-preview" onclick="previewSharePoint()">Preview SharePoint Updates</button>
+      <button class="btn btn-primary" id="sharepoint-apply" onclick="applySharePoint()" disabled>Apply Selected Updates</button>
+    </div>
+    <div id="sharepoint-output" style="margin-top:16px;font-size:13px" aria-live="polite"></div>
+  </div>
   <div class="settings-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>

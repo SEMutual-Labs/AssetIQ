@@ -3,6 +3,7 @@ const http = require('node:http');
 const path = require('node:path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.php'), 'utf8')
+  .replace(/<\?=\s*json_encode\(\$_SESSION\['sharepoint_csrf'\]\)\s*\?>/g, '"preview-only-token"')
   .replace(/<\?php[\s\S]*?\?>/g, '')
   .replace(/<\?=[\s\S]*?\?>/g, 'Preview User');
 const fixtures = process.argv.includes('--fixtures');

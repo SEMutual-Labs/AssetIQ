@@ -133,6 +133,134 @@ Generate a .htpasswd file at: https://www.web2generators.com/apache-tools/htpass
 
 ---
 
+## SharePoint Asset Register Write-back
+
+Settings includes **Preview SharePoint Updates** and **Apply Selected Updates**
+for the existing Asset Register list at
+`https://semutual.sharepoint.com/sites/AssetManagement/Lists/Asset%20Register/AllItems.aspx`.
+This is manual, one-way, update-only synchronization. It does not replace MySQL,
+import SharePoint changes, or create/delete SharePoint items.
+
+### Server configuration and permissions
+
+In the private settings file outside the public web root, configure:
+
+```php
+define('SHAREPOINT_TENANT_ID', 'your-tenant-id');
+define('SHAREPOINT_CLIENT_ID', 'your-application-id');
+define('SHAREPOINT_CLIENT_SECRET', 'your-application-secret');
+// Optional: the list GUID avoids discovering the list by display name.
+define('SHAREPOINT_LIST_ID', 'your-list-guid');
+```
+
+Use an Entra application with Microsoft Graph **application** permissions.
+Prefer `Sites.Selected`, administrator consent, and an explicit `write` grant
+on the AssetManagement site. Consent alone does not grant access. An
+administrator must provision the resource grant separately; AssetIQ does not
+give itself permissions. A separate SharePoint application is recommended to
+keep access independent of Intune. Reusing an existing app requires explicitly
+configuring these constants and granting SharePoint permissions; Intune
+permissions and a user's Microsoft sign-in are not sufficient.
+
+Keep credentials server-side, rotate expiring secrets, and never paste them into
+chat, JavaScript, or the public web root. This Cloudways-hosted PHP integration
+uses client credentials, consistent with the existing hosting; it does not
+assume an Azure managed identity is available. All signed-in AssetIQ users can
+use this feature, consistent with existing inventory-edit access; there is no
+new admin-only role.
+
+### Translation rules
+
+| AssetIQ | SharePoint | Behavior |
+|---|---|---|
+| Asset ID | Asset ID | Match only, case-insensitive with surrounding whitespace ignored |
+| Type | Asset Type | Match the live list's allowed choices |
+| Serial | Serial Number | Text |
+| Status | Status | `active` → `Active`, `retired` → `Retired` |
+| Name | Make/Model | Text; verify this mapping in the preview |
+| Assigned To | Current Owner | Text, not a Person lookup |
+| Department | Department | Match the live list's allowed choices |
+| Purchase Date | Purchase Date | ISO date |
+| Cost | Purchase Price | Numeric; no currency conversion |
+| Notes | Notes | Plain text |
+| Successful sync time | Last Updated | UTC timestamp, only when applying actual changes |
+
+Internal column names and choice values are discovered through Graph; they are
+not inferred from spaces in display names. Missing, ambiguous, read-only,
+rich-text, or unsupported mapped columns fail explicitly. Invalid choices,
+overlong text, or invalid dates/prices block the entire affected row.
+
+SharePoint statuses such as **In storage**, **Lost**, and **repair** are preserved,
+even when AssetIQ says active or retired. Empty AssetIQ values preserve existing
+SharePoint values and appear as warnings; this version does not clear fields.
+Calculated columns, Location, Previous Owner, Condition Notes, Color, Order
+Number, Invoice Number, Days Owned, and other unmapped columns are not written.
+SharePoint still manages Modified and Modified By and recalculates its formulas.
+Previous Owner is not automatically maintained.
+
+Choice labels are matched case-insensitively and written using the exact
+SharePoint label. Nonmatching values require an explicit translation; they are
+never guessed. If needed, add confirmed aliases in the private settings file:
+
+```php
+define('SHAREPOINT_VALUE_MAPS', [
+    'type' => [
+        // 'AssetIQ type label' => 'Exact allowed SharePoint type label',
+    ],
+    'department' => [
+        // 'AssetIQ department label' => 'Exact allowed SharePoint department label',
+    ],
+]);
+```
+
+For example, `No Longer At SEM` is not automatically converted to `Not Assigned`.
+Empty departments are preserved rather than assigned a default.
+
+### Preview, apply, and conflicts
+
+1. Open Settings and generate a preview. This reads the list but makes no
+   SharePoint writes.
+2. Expand rows to inspect before/after values and warnings. Unmatched Asset IDs
+   and duplicate matches are reported; duplicate matches cannot be applied.
+3. Deselect any ready assets you do not want to update, then apply and confirm.
+   The preview is stored server-side in the signed-in session for 15 minutes.
+4. Each selected item is updated separately, so partial success is possible.
+   Per-item results remain visible. Successful updates are recorded as
+   **Synced to SharePoint** in AssetIQ's Activity Log.
+
+The server checks the local asset snapshot and uses SharePoint's `If-Match`
+ETag to reject records changed since preview. A request cannot provide arbitrary
+field values or item IDs: only the stored preview can be applied. A new preview
+replaces the old one; reloads, session expiry, or another tab generating a preview
+may invalidate it.
+
+Writes are not automatically retried, including throttling and timeouts, because
+an interrupted request may already have reached SharePoint. Wait when throttled,
+then generate a fresh preview to see what remains. An attempted row cannot be
+replayed from the same preview. An audit failure after a successful remote write
+is explicitly reported as such, not as a safely retryable operation.
+
+PHP cURL and outbound HTTPS to Microsoft login and Graph are required. No extra
+Composer/npm dependencies or database migrations are needed. Collection reads
+are paginated, with an explicit failure after 200 pages rather than a partial
+preview.
+
+References:
+[Update list item fields and conditional writes](https://learn.microsoft.com/en-us/graph/api/listitem-update?view=graph-rest-1.0),
+[Selected permissions and resource grants](https://learn.microsoft.com/en-us/graph/permissions-selected-overview),
+[Column definitions](https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0).
+
+Focused local checks:
+
+```powershell
+php tests\sharepoint.test.php
+node --test tests\sharepoint.test.cjs tests\api-fetch.test.cjs
+```
+
+These checks use fixtures and do not write to the real SharePoint list. A live
+preview and an administrator-approved test update are still needed after server
+configuration.
+
 ## Troubleshooting
 
 | Problem | Fix |
