@@ -2545,27 +2545,83 @@ function wrapSettingsBodies() {
 const SHAREPOINT_CSRF = <?= json_encode($_SESSION['sharepoint_csrf']) ?>;
 let sharepointPlan = null;
 let sharepointBusy = false;
+let sharepointSelectionAnchor = null;
+
+function updateSharePointSelection() {
+  const boxes = Array.from(document.querySelectorAll('.sharepoint-select'));
+  const selected = boxes.filter(box => box.checked);
+  const creates = selected.filter(box => sharepointPlan.rows[Number(box.dataset.index)].operation === 'create').length;
+  document.getElementById('sharepoint-selection-count').textContent =
+    `${selected.length} of ${boxes.length} ready selected (${selected.length - creates} updates, ${creates} new items).`;
+  document.getElementById('sharepoint-apply').disabled = sharepointBusy || !selected.length;
+}
+
+function selectSharePointRange(event, box) {
+  event.stopPropagation();
+  if (sharepointBusy || !sharepointPlan || box.disabled) return;
+  const index = Number(box.dataset.index);
+  if (event.shiftKey && sharepointSelectionAnchor !== null) {
+    const start = Math.min(index, sharepointSelectionAnchor);
+    const end = Math.max(index, sharepointSelectionAnchor);
+    document.querySelectorAll('.sharepoint-select').forEach(item => {
+      const itemIndex = Number(item.dataset.index);
+      if (!item.disabled && itemIndex >= start && itemIndex <= end) item.checked = box.checked;
+    });
+  }
+  sharepointSelectionAnchor = index;
+  updateSharePointSelection();
+}
+
+function selectSharePointAll(checked) {
+  if (sharepointBusy || !sharepointPlan) return;
+  document.querySelectorAll('.sharepoint-select').forEach(box => {
+    if (!box.disabled) box.checked = checked;
+  });
+  sharepointSelectionAnchor = null;
+  updateSharePointSelection();
+}
+
+function showSharePointProgress(completed, total, updated, created, failed, label) {
+  document.getElementById('sharepoint-progress').hidden = false;
+  const bar = document.getElementById('sharepoint-progress-bar');
+  bar.max = total;
+  bar.value = completed;
+  document.getElementById('sharepoint-progress-label').textContent = label;
+  document.getElementById('sharepoint-progress-detail').textContent =
+    `${completed} / ${total} processed (${Math.round(completed / total * 100)}%) - ${updated} updated, ${created} created, ${failed} failed.`;
+}
 
 function renderSharePointPreview() {
   const output = document.getElementById('sharepoint-output');
   if (!sharepointPlan) return;
   const rows = sharepointPlan.rows;
+  sharepointSelectionAnchor = null;
   output.innerHTML = `<p>${rows.filter(r => r.status === 'ready' && r.operation !== 'create').length} ready to update, ${rows.filter(r => r.status === 'ready' && r.operation === 'create').length} ready to create, ${rows.filter(r => r.status === 'unchanged').length} unchanged, ${rows.filter(r => r.status === 'blocked').length} blocked. New items are unchecked by default; select them explicitly to create. Preview expires in 15 minutes. Last Updated is set to the sync time on successful writes.</p>` +
+    `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0">
+      <button class="btn btn-ghost sharepoint-bulk" onclick="selectSharePointAll(true)">Select all ready (including new items)</button>
+      <button class="btn btn-ghost sharepoint-bulk" onclick="selectSharePointAll(false)">Clear selection</button>
+      <span id="sharepoint-selection-count" role="status"></span>
+    </div><p style="color:var(--muted)">Click a checkbox, then Shift-click another to select or exclude the range. Blocked and unchanged rows are skipped. Ranges can include new items.</p>` +
     rows.map((row, i) => `<details style="margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:8px">
-      <summary>${row.status === 'ready' ? `<input type="checkbox" class="sharepoint-select" data-index="${i}" ${row.operation === 'create' ? '' : 'checked'} aria-label="Select ${esc(row.assetId)}"> ` : ''}${esc(row.assetId)} - ${esc(row.status)}${row.operation === 'create' ? ' (NEW ITEM)' : ''}</summary>
+      <summary>${row.status === 'ready' ? `<input type="checkbox" class="sharepoint-select" data-index="${i}" ${row.operation === 'create' ? '' : 'checked'} aria-label="Select ${esc(row.assetId)}" onclick="selectSharePointRange(event,this)"> ` : ''}${esc(row.assetId)} - ${esc(row.status)}${row.operation === 'create' ? ' (NEW ITEM)' : ''}</summary>
       ${row.error ? `<p>${esc(row.error)}</p>` : ''}
       ${row.operation === 'create' ? '<p>No matching Asset ID exists. Once validation passes, explicitly selecting and applying this row creates a new SharePoint item instead of overwriting one.</p>' : ''}
       ${row.changes.map(c => `<div style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere"><strong>${esc(c.column)}</strong>: ${esc(String(c.before ?? '(empty)'))} &rarr; ${esc(String(c.after))}</div>`).join('')}
       ${row.warnings.map(w => `<p style="color:var(--muted)">${esc(w)}</p>`).join('')}
       <p id="sharepoint-result-${i}" role="status"></p>
     </details>`).join('');
-  document.getElementById('sharepoint-apply').disabled = !rows.some(r => r.status === 'ready');
+  updateSharePointSelection();
 }
 
 async function previewSharePoint() {
   if (sharepointBusy) return;
   sharepointBusy = true;
   sharepointPlan = null;
+  sharepointSelectionAnchor = null;
+  document.getElementById('sharepoint-progress').hidden = false;
+  document.getElementById('sharepoint-progress-bar').removeAttribute('value');
+  document.getElementById('sharepoint-progress-label').textContent = 'Loading preview...';
+  document.getElementById('sharepoint-progress-detail').textContent = 'Reading SharePoint inventory. No writes are being made.';
   const button = document.getElementById('sharepoint-preview');
   button.disabled = true;
   document.getElementById('sharepoint-apply').disabled = true;
@@ -2579,6 +2635,8 @@ async function previewSharePoint() {
   } finally {
     sharepointBusy = false;
     button.disabled = false;
+    document.getElementById('sharepoint-progress').hidden = true;
+    if (sharepointPlan) updateSharePointSelection();
   }
 }
 
@@ -2593,14 +2651,19 @@ async function applySharePoint() {
   document.getElementById('sharepoint-preview').disabled = true;
   document.getElementById('sharepoint-apply').disabled = true;
   document.querySelectorAll('.sharepoint-select').forEach(el => { el.disabled = true; });
+  document.querySelectorAll('.sharepoint-bulk').forEach(el => { el.disabled = true; });
   let updated = 0;
   let created = 0;
   let failed = 0;
+  let completed = 0;
+  showSharePointProgress(0, selected.length, 0, 0, 0, 'Starting sync...');
   try {
     for (const index of selected) {
       const row = sharepointPlan.rows[index];
       const result = document.getElementById(`sharepoint-result-${index}`);
       result.textContent = row.operation === 'create' ? 'Creating...' : 'Updating...';
+      showSharePointProgress(completed, selected.length, updated, created, failed,
+        `${row.operation === 'create' ? 'Creating' : 'Updating'} ${row.assetId}...`);
       try {
         const response = await apiFetch('api/sharepoint.php', {method:'POST', body:JSON.stringify({
           action:'apply', csrf:SHAREPOINT_CSRF, previewId:sharepointPlan.previewId, assetId:row.assetId,
@@ -2613,12 +2676,18 @@ async function applySharePoint() {
       } catch (error) {
         result.textContent = error.message;
         failed++;
-        if (authRedirectPending) break;
       }
+      completed++;
+      showSharePointProgress(completed, selected.length, updated, created, failed,
+        completed === selected.length ? 'Sync finished' : 'Sync in progress...');
+      if (authRedirectPending) break;
     }
+    const notAttempted = selected.length - completed;
+    showSharePointProgress(completed, selected.length, updated, created, failed,
+      notAttempted ? 'Sync stopped - sign-in required' : failed ? 'Sync finished with errors' : 'Sync complete');
     const summary = document.createElement('p');
     summary.setAttribute('role', 'status');
-    summary.textContent = `${updated} updated, ${created} created, ${failed} failed. Generate a new preview before any further writes.`;
+    summary.textContent = `${updated} updated, ${created} created, ${failed} failed.${notAttempted ? ` ${notAttempted} not attempted.` : ''} Generate a new preview before any further writes.`;
     document.getElementById('sharepoint-output').prepend(summary);
     toast(summary.textContent, failed ? 'error' : 'success');
   } finally {
@@ -4244,6 +4313,11 @@ _sObs.observe(document.body,{childList:true,subtree:true});
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <button class="btn btn-ghost" id="sharepoint-preview" onclick="previewSharePoint()">Preview SharePoint Changes</button>
       <button class="btn btn-primary" id="sharepoint-apply" onclick="applySharePoint()" disabled>Apply Selected Changes</button>
+    </div>
+    <div id="sharepoint-progress" hidden style="margin-top:16px">
+      <div id="sharepoint-progress-label" style="font-weight:700;margin-bottom:8px"></div>
+      <progress id="sharepoint-progress-bar" max="1" value="0" aria-labelledby="sharepoint-progress-label" style="width:100%;height:14px;accent-color:var(--accent)"></progress>
+      <p id="sharepoint-progress-detail" role="status" style="font-size:12px;color:var(--muted);margin-top:6px"></p>
     </div>
     <div id="sharepoint-output" style="margin-top:16px;font-size:13px" aria-live="polite"></div>
   </div>

@@ -11,13 +11,15 @@ const script = source.slice(start, end).replace(/<\?=[\s\S]*?\?>/, '"csrf-test"'
 
 function setup(apiFetch, confirm = () => true) {
   const elements = new Map();
-  const selectors = [{dataset:{index:'0'}, disabled:false}];
+  const selectors = [{dataset:{index:'0'}, disabled:false, checked:true}];
   const document = {
     getElementById(id) {
-      if (!elements.has(id)) elements.set(id, {disabled:false, innerHTML:'', textContent:'', prepend(value) { this.summary = value.textContent; }});
+      if (!elements.has(id)) elements.set(id, {disabled:false, hidden:true, innerHTML:'', textContent:'',
+        removeAttribute(name) { delete this[name]; }, prepend(value) { this.summary = value.textContent; }});
       return elements.get(id);
     },
-    querySelectorAll: () => selectors,
+    querySelectorAll: selector => selector === '.sharepoint-bulk' ? []
+      : selector.includes(':checked') ? selectors.filter(box => box.checked) : selectors,
     createElement: () => ({textContent:'', setAttribute() {}}),
   };
   const messages = [];
@@ -140,7 +142,7 @@ test('Mixed selection reports updates and creates separately', async () => {
     const body = JSON.parse(opts.body);
     return body.action === 'preview' ? data : {status:body.assetId === 'SEM-NB02' ? 'created' : 'updated'};
   }, message => { prompt = message; return true; });
-  app.selectors.push({dataset:{index:'1'},disabled:false});
+  app.selectors.push({dataset:{index:'1'},disabled:false,checked:true});
   await app.context.previewSharePoint();
   await app.context.applySharePoint();
   assert.match(prompt, /Update 1 existing SharePoint item\(s\) and create 1 new item\(s\)/);
@@ -159,8 +161,103 @@ test('No selection and unexpected responses never report a successful create', a
   app.selectors.splice(0);
   await app.context.applySharePoint();
   assert.equal(applies, 0);
-  app.selectors.push({dataset:{index:'0'}});
+  app.selectors.push({dataset:{index:'0'},checked:true});
   await app.context.applySharePoint();
   assert.match(app.elements.get('sharepoint-result-0').textContent, /Unexpected sync response/);
   assert.match(app.elements.get('sharepoint-output').summary, /0 updated, 0 created, 1 failed/);
+});
+
+test('Shift-click selects and excludes forward and backward ranges while skipping unavailable rows', async () => {
+  const data = plan();
+  data.rows = Array.from({length:6}, (_, i) => ({...data.rows[0],assetId:`ASSET-${i}`,operation:i === 4 ? 'create' : 'update'}));
+  const app = setup(async () => data);
+  app.selectors.splice(0, 1, ...[0,2,4,5].map(index => ({dataset:{index:String(index)},checked:false,disabled:false})));
+  await app.context.previewSharePoint();
+  let stopped = 0;
+  const click = (box, checked, shiftKey = false) => {
+    box.checked = checked;
+    app.context.selectSharePointRange({shiftKey,stopPropagation() { stopped++; }}, box);
+  };
+  click(app.selectors[0], true);
+  click(app.selectors[2], true, true);
+  assert.deepEqual(app.selectors.map(box => box.checked), [true,true,true,false]);
+  assert.match(app.elements.get('sharepoint-selection-count').textContent, /3 of 4 ready selected \(2 updates, 1 new items\)/);
+  click(app.selectors[2], false);
+  click(app.selectors[0], false, true);
+  assert.deepEqual(app.selectors.map(box => box.checked), [false,false,false,false]);
+  assert.equal(app.elements.get('sharepoint-apply').disabled, true);
+  assert.equal(stopped, 4);
+});
+
+test('Bulk selection includes new items explicitly, clears selection and resets range anchor', async () => {
+  const data = plan();
+  data.rows.push({...data.rows[0],assetId:'NEW',operation:'create'});
+  const app = setup(async () => data);
+  app.selectors.push({dataset:{index:'1'},checked:false,disabled:false});
+  await app.context.previewSharePoint();
+  app.context.selectSharePointAll(true);
+  assert.deepEqual(app.selectors.map(box => box.checked), [true,true]);
+  assert.match(app.elements.get('sharepoint-selection-count').textContent, /1 updates, 1 new items/);
+  app.context.selectSharePointAll(false);
+  assert.deepEqual(app.selectors.map(box => box.checked), [false,false]);
+  assert.equal(app.elements.get('sharepoint-apply').disabled, true);
+  app.selectors[1].checked = true;
+  app.context.selectSharePointRange({shiftKey:true,stopPropagation() {}}, app.selectors[1]);
+  assert.equal(app.selectors[0].checked, false);
+});
+
+test('Progress reports zero before response, each completed request, failures, and final completion', async () => {
+  const data = plan();
+  data.rows.push({...data.rows[0],assetId:'NEW',operation:'create'});
+  const pending = [];
+  const app = setup(async (url, opts) => JSON.parse(opts.body).action === 'preview' ? data
+    : new Promise((resolve, reject) => pending.push({resolve,reject})));
+  app.selectors.push({dataset:{index:'1'},checked:true,disabled:false});
+  await app.context.previewSharePoint();
+  const applying = app.context.applySharePoint();
+  assert.equal(app.elements.get('sharepoint-progress').hidden, false);
+  assert.equal(app.elements.get('sharepoint-progress-bar').value, 0);
+  assert.equal(app.elements.get('sharepoint-progress-bar').max, 2);
+  assert.match(app.elements.get('sharepoint-progress-label').textContent, /Updating SEM-NB01/);
+  app.context.selectSharePointAll(false);
+  assert.equal(app.selectors[0].checked, true);
+  pending[0].resolve({status:'updated'});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.elements.get('sharepoint-progress-bar').value, 1);
+  assert.match(app.elements.get('sharepoint-progress-detail').textContent, /1 \/ 2 processed \(50%\)/);
+  assert.match(app.elements.get('sharepoint-progress-label').textContent, /Creating NEW/);
+  pending[1].reject(new Error('Create failed'));
+  await applying;
+  assert.equal(app.elements.get('sharepoint-progress-bar').value, 2);
+  assert.match(app.elements.get('sharepoint-progress-detail').textContent, /100%.*1 updated, 0 created, 1 failed/);
+  assert.equal(app.elements.get('sharepoint-progress-label').textContent, 'Sync finished with errors');
+});
+
+test('Expired sessions stop below 100 percent and report unattempted items', async () => {
+  const data = plan();
+  data.rows.push({...data.rows[0],assetId:'NEXT'});
+  const app = setup(async (url, opts) => {
+    if (JSON.parse(opts.body).action === 'preview') return data;
+    app.context.authRedirectPending = true;
+    throw new Error('Session expired');
+  });
+  app.selectors.push({dataset:{index:'1'},checked:true,disabled:false});
+  await app.context.previewSharePoint();
+  await app.context.applySharePoint();
+  assert.equal(app.elements.get('sharepoint-progress-bar').value, 1);
+  assert.match(app.elements.get('sharepoint-progress-detail').textContent, /50%/);
+  assert.match(app.elements.get('sharepoint-output').summary, /1 not attempted/);
+  assert.equal(app.elements.get('sharepoint-progress-label').textContent, 'Sync stopped - sign-in required');
+});
+
+test('Preview shows indeterminate progress and hides it on failure', async () => {
+  let reject;
+  const app = setup(() => new Promise((resolve, fail) => { reject = fail; }));
+  const loading = app.context.previewSharePoint();
+  assert.equal(app.elements.get('sharepoint-progress').hidden, false);
+  assert.equal(app.elements.get('sharepoint-progress-bar').value, undefined);
+  reject(new Error('Read failed'));
+  await loading;
+  assert.equal(app.elements.get('sharepoint-progress').hidden, true);
+  assert.equal(app.elements.get('sharepoint-output').textContent, 'Read failed');
 });

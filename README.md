@@ -253,6 +253,20 @@ Empty departments are preserved rather than assigned a default.
    Successful writes are recorded as **Synced to SharePoint** in AssetIQ's
    Activity Log, including the operation and SharePoint item ID.
 
+Use **Select all ready (including new items)** or **Clear selection** for bulk
+selection. Click a checkbox and then Shift-click another checkbox to apply the
+second checkbox's checked/unchecked state to the inclusive range in preview order.
+Blocked and unchanged rows are skipped; a range can include new items. New items
+still start unchecked on each fresh preview. The selected update/create counts
+are shown before confirmation, and selection is locked during sync.
+
+While loading a preview, an indeterminate indicator is shown. During apply, a
+progress bar shows completed requests out of selected items, percentage, current
+Asset ID, and updated/created/failed counts. Failed requests count as processed,
+not successful. Progress advances after each response; it does not estimate
+completion time or progress inside a single Microsoft request. If sign-in expires,
+the sync stops and reports unattempted items without showing a false 100%.
+
 ### Creating missing items
 
 The existing site `write` grant also allows creation; no new application permission
