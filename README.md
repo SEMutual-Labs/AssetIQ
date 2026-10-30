@@ -456,6 +456,9 @@ The serial scanner uses html5-qrcode's cropped decoding region, outlined by a
 stationary target. The dashed center line is only an alignment guide, not an
 individual sampling point. Default Linear Barcode mode excludes square QR/Data
 Matrix codes; select 2D Code when the printed serial uses those formats.
+It requests the environment-facing camera without imposing a video resolution,
+so camera startup remains compatible with devices that support QR scanning but
+not higher-resolution capture constraints.
 
 Three matching reads produce a paused candidate for review. The serial input is
 not changed until **Use Serial** is selected. **Scan Again** discards the candidate

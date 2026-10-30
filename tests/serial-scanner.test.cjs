@@ -64,19 +64,22 @@ test('Accepting a reviewed result writes the serial and stops the camera',async(
 
 test('Stopping during camera startup releases the camera after startup resolves',async()=>{
   const {context,document}=setup();
-  let resolveStart,stopped=0,cleared=0;
+  let resolveStart,cameraConstraints,stopped=0,cleared=0;
   context.window={isSecureContext:true,Html5Qrcode:true};
   context.navigator={mediaDevices:{getUserMedia(){}}};
   context.loadHtml5QrCode=callback=>callback();
   context.Html5QrcodeSupportedFormats={};
   context.Html5Qrcode=class {
-    start(camera,config){config.qrbox(320,240);return new Promise(resolve=>{resolveStart=resolve;});}
+    start(camera,config){cameraConstraints=camera;config.qrbox(320,240);return new Promise(resolve=>{resolveStart=resolve;});}
     async stop(){stopped++;}
     clear(){cleared++;}
   };
   const starting=context.startSerialScanner();
   await Promise.resolve();await Promise.resolve();
   assert.ok(resolveStart);
+  assert.equal(cameraConstraints.facingMode,'environment');
+  assert.equal('width' in cameraConstraints,false);
+  assert.equal('height' in cameraConstraints,false);
   const stopping=context.stopSerialScanner();
   resolveStart();
   await starting;await stopping;

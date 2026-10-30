@@ -3883,7 +3883,7 @@ async function startSerialScanner(){
   serialScanner=scanner;
   try {
     serialScanStartPromise=scanner.start(
-      {facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+      {facingMode:'environment'},
       {fps:12,qrbox:(width,height)=>{targetDimensions=serialScanRegion(width,height,mode);return targetDimensions;}},
       decoded=>{if(version===serialScanVersion) handleSerialRead(decoded, scanner);},
       ()=>{}
