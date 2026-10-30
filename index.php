@@ -2020,6 +2020,8 @@ async function loadDashboard() {
 }
 
 async function loadAssets() {
+  assetSelectionAnchor = null;
+  cachedAssets = [];
   const q=document.getElementById('search-input')?.value||'';
   const ft=document.getElementById('filter-type')?.value||'';
   const fs=document.getElementById('filter-status')?.value||'';
@@ -2035,11 +2037,15 @@ async function loadAssets() {
     assets = await apiFetch(API+'?'+p.toString());
     if (fs === 'overdue') assets = pastEolAssets(assets);
   } catch(e) {
+    selectedIds.clear();
+    updateBatchBar();
     document.getElementById('assets-list').innerHTML='<div class="empty-state"><h3>Failed to load</h3><p>'+e.message+'</p></div>';
     document.getElementById('assets-tbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px">'+e.message+'</td></tr>';
     return;
   }
   if(!assets.length){
+    selectedIds.clear();
+    updateBatchBar();
     document.getElementById('assets-list').innerHTML='';
     document.getElementById('assets-tbody').innerHTML='';
     document.getElementById('asset-empty').style.display='block';
@@ -2047,6 +2053,8 @@ async function loadAssets() {
   }
   document.getElementById('asset-empty').style.display='none';
   cachedAssets = assets;
+  const visibleIds = new Set(assets.map(asset => asset.id));
+  selectedIds.forEach(id => { if (!visibleIds.has(id)) selectedIds.delete(id); });
   document.getElementById('assets-list').innerHTML=assets.map(a=>assetCard(a)).join('');
   document.getElementById('assets-tbody').innerHTML=assets.map(a=>`
     <tr id="trow-${esc(a.id)}" class="asset-open-row" tabindex="0" aria-label="${esc('Open ' + a.name)}" onclick="openAssetRow(event,${jsArg(a.id)},true)" onkeydown="openAssetRow(event,${jsArg(a.id)},true)" style="${a.status==='retired'?'opacity:0.55':eolStatus(a.endOfLife)==='critical'?'background:rgba(255,59,92,0.04)':eolStatus(a.endOfLife)==='warning'?'background:rgba(255,140,0,0.03)':''}">
@@ -2065,6 +2073,11 @@ async function loadAssets() {
         <button class="tbl-btn danger" onclick="deleteAsset('${esc(a.id)}')">Del</button>
       </div></td>
     </tr>`).join('');
+  selectedIds.forEach(id => {
+    document.getElementById('card-' + id)?.classList.add('selected');
+    document.getElementById('trow-' + id)?.classList.add('selected');
+  });
+  updateBatchBar();
 }
 
 
@@ -2154,8 +2167,10 @@ function assetCard(a) {
 let batchMode    = false;
 let selectedIds  = new Set();
 let cachedAssets = []; // keep reference to loaded assets for batch ops
+let assetSelectionAnchor = null;
 
 function toggleBatchMode() {
+  assetSelectionAnchor = null;
   batchMode = !batchMode;
   selectedIds.clear();
   const list = document.getElementById('assets-list');
@@ -2172,6 +2187,7 @@ function toggleBatchMode() {
 }
 
 function selectAll() {
+  assetSelectionAnchor = null;
   cachedAssets.forEach(a => {
     selectedIds.add(a.id);
     document.getElementById('card-' + a.id)?.classList.add('selected');
@@ -2181,6 +2197,7 @@ function selectAll() {
 }
 
 function cancelBatchMode() {
+  assetSelectionAnchor = null;
   batchMode = false;
   selectedIds.clear();
   document.getElementById('assets-list').classList.remove('batch-mode');
@@ -2208,15 +2225,19 @@ function toggleCardSelect(id, e) {
   const card = document.getElementById('card-' + id);
   const trow = document.getElementById('trow-' + id);
   if (!card && !trow) return;
-  if (selectedIds.has(id)) {
-    selectedIds.delete(id);
-    card?.classList.remove('selected');
-    trow?.classList.remove('selected');
-  } else {
-    selectedIds.add(id);
-    card?.classList.add('selected');
-    trow?.classList.add('selected');
-  }
+  const checked = !selectedIds.has(id);
+  const index = cachedAssets.findIndex(asset => asset.id === id);
+  const anchor = cachedAssets.findIndex(asset => asset.id === assetSelectionAnchor);
+  const ids = e?.shiftKey && index >= 0 && anchor >= 0
+    ? cachedAssets.slice(Math.min(index, anchor), Math.max(index, anchor) + 1).map(asset => asset.id)
+    : [id];
+  ids.forEach(assetId => {
+    if (checked) selectedIds.add(assetId);
+    else selectedIds.delete(assetId);
+    document.getElementById('card-' + assetId)?.classList.toggle('selected', checked);
+    document.getElementById('trow-' + assetId)?.classList.toggle('selected', checked);
+  });
+  assetSelectionAnchor = id;
   updateBatchBar();
 }
 

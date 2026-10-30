@@ -191,11 +191,12 @@ function sharepointTranslate(array $asset, array $fields, array $columns, array 
         }
         if ($source === 'status') {
             if (!in_array($value, ['active', 'retired'], true)) throw new InvalidArgumentException('Unsupported AssetIQ status.');
-            if ($before !== null && trim((string)$before) !== '' && !in_array(strtolower(trim((string)$before)), ['active', 'retired'], true)) {
+            if ($before !== null && trim((string)$before) !== '' && !in_array(strtolower(trim((string)$before)), ['active', 'retired', 'unassigned'], true)) {
                 $warnings[] = 'Status preserved (' . $before . '): AssetIQ has no equivalent.';
                 continue;
             }
-            $value = $value === 'active' ? 'Active' : 'Retired';
+            $value = $value === 'retired' ? 'Retired'
+                : (trim((string)($asset['assigned_to'] ?? '')) === '' ? 'Unassigned' : 'Active');
         }
         if ($kind === 'choice') {
             $value = $valueMaps[$source][$value] ?? $value;

@@ -20,9 +20,9 @@ foreach (sharepointMapping() as $source => [$label, $kind]) {
     $facet = match ($kind) {
         'text' => ['maxLength' => $source === 'notes' ? 10000 : 255],
         'choice' => ['choices' => match ($source) {
-            'status' => ['Active', 'In storage', 'Retired', 'Lost', 'repair'],
+            'status' => ['Active', 'Unassigned', 'In storage', 'Retired', 'Lost', 'repair'],
             'type' => ['Laptop', 'Desktop', 'Monitor', 'Dock'],
-            'department' => ['Claims', 'Finance', 'Management', 'Marketing', 'Agent', 'IT', 'Underwriting', 'Not Assigned'],
+            'department' => ['Claims', 'Finance', 'Management', 'Marketing', 'Agent', 'IT', 'Underwriting', 'Not Assigned', 'No Longer At SEM'],
         }],
         'dateTime' => ['format' => $source === 'purchase_date' ? 'dateOnly' : 'dateTime'],
         default => [],
@@ -56,10 +56,19 @@ foreach (['In storage', 'Lost', 'repair'] as $status) {
 }
 $empty = array_replace($asset, ['assigned_to' => '', 'cost' => null, 'purchase_date' => null, 'notes' => '']);
 $result = sharepointTranslate($empty, $fields, $columns);
-check($result['patch'] === [] && count($result['warnings']) === 4, 'Blank/null values preserve existing SharePoint fields with explicit warnings');
+check($result['patch'] === ['internal_status' => 'Unassigned'] && count($result['warnings']) === 4, 'Blank values preserve existing fields while status reflects the missing owner');
 check(sharepointTranslate(array_replace($asset, ['cost' => 0]), $fields, $columns)['patch']['internal_cost'] === 0.0, 'Zero is a valid price, not an empty value');
 check(sharepointTranslate(array_replace($asset, ['department' => 'claims']), $fields, $columns)['patch']['internal_department'] === 'Claims', 'Department choice matching ignores casing');
-rejects(fn() => sharepointTranslate(array_replace($asset, ['department' => 'No Longer At SEM']), $fields, $columns), 'Unknown department blocks translation rather than guessing');
+rejects(fn() => sharepointTranslate(array_replace($asset, ['department' => 'Unknown Department']), $fields, $columns), 'Unknown department blocks translation rather than guessing');
+check(sharepointTranslate(array_replace($asset, ['department' => 'No Longer At SEM']), $fields, $columns)['patch']['internal_department'] === 'No Longer At SEM', 'New department choice is discovered without an alias');
+check(sharepointTranslate(array_replace($asset, ['assigned_to' => '  ']), $fields, $columns)['patch']['internal_status'] === 'Unassigned', 'Active asset without owner maps to Unassigned');
+check(sharepointTranslate($asset, array_replace($fields, ['internal_status' => 'Unassigned']), $columns)['patch']['internal_status'] === 'Active', 'Assigning an owner changes Unassigned back to Active');
+check(sharepointTranslate(array_replace($asset, ['status' => 'retired', 'assigned_to' => '']), $fields, $columns)['patch']['internal_status'] === 'Retired', 'Retired takes priority over missing owner');
+check(sharepointTranslate(array_replace($asset, ['assigned_to' => '']), array_replace($fields, ['internal_status' => 'Lost']), $columns)['patch'] === [], 'Lost remains protected even when the owner is absent');
+$oldColumns = $columns;
+$oldColumns['status']['choice']['choices'] = ['Active', 'Retired'];
+rejects(fn() => sharepointTranslate(array_replace($asset, ['assigned_to' => '']), $fields, $oldColumns), 'Missing Unassigned choice blocks rather than falling back');
+check(sharepointTranslate(array_replace($asset, ['assigned_to' => '']), [], $columns)['patch']['internal_status'] === 'Unassigned', 'New unowned assets also use Unassigned');
 rejects(fn() => sharepointTranslate(array_replace($asset, ['purchase_date' => '2024-02-31']), $fields, $columns), 'Invalid dates are rejected');
 rejects(fn() => sharepointTranslate(array_replace($asset, ['cost' => -5]), $fields, $columns), 'Negative price is rejected');
 rejects(fn() => sharepointTranslate(array_replace($asset, ['serial' => str_repeat('x', 256)]), $fields, $columns), 'Column length is respected');

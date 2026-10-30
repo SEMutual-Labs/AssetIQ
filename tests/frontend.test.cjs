@@ -6,6 +6,92 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'index.php'), 'utf8');
 
+function assetSelectionContext() {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) {
+      const classes = new Set();
+      elements.set(id, { value: '', style: {}, innerHTML: '', classList: {
+        add: name => classes.add(name), remove: name => classes.delete(name),
+        contains: name => classes.has(name),
+        toggle: (name, checked) => checked ? classes.add(name) : classes.delete(name),
+      } });
+    }
+    return elements.get(id);
+  };
+  const context = vm.createContext({
+    document: { getElementById: element, querySelectorAll: () => [...elements.values()] },
+    URLSearchParams, API: '/assets', sortKey: 'id', sortAsc: true,
+    apiFetch: async () => [],
+  });
+  const start = source.indexOf('let batchMode    =');
+  const end = source.indexOf('\nasync function batchDelete(', start);
+  vm.runInContext(source.slice(start, end), context);
+  vm.runInContext("cachedAssets = ['D', 'B', 'A', 'C'].map(id => ({id}));", context);
+  return { context, element, selected: () => Array.from(vm.runInContext('[...selectedIds]', context)) };
+}
+
+test('Assets Shift-click selects and deselects inclusive ranges in displayed order in both views', () => {
+  const { context, element, selected } = assetSelectionContext();
+  const click = (id, shiftKey = false) => context.toggleCardSelect(id, { shiftKey, stopPropagation() {} });
+  click('B');
+  click('C', true);
+  assert.deepEqual(selected(), ['B', 'A', 'C']);
+  click('B', true);
+  assert.deepEqual(selected(), []);
+  click('C');
+  click('D', true);
+  assert.deepEqual(new Set(selected()), new Set(['D', 'B', 'A', 'C']));
+  for (const id of selected()) {
+    assert.ok(element('card-' + id).classList.contains('selected'));
+    assert.ok(element('trow-' + id).classList.contains('selected'));
+  }
+  assert.equal(element('batch-count').textContent, '4 selected');
+  context.cancelBatchMode();
+  assert.deepEqual(selected(), []);
+  assert.equal(vm.runInContext('assetSelectionAnchor', context), null);
+  context.toggleBatchMode();
+  click('B');
+  context.selectAll();
+  assert.equal(selected().length, 4);
+  assert.equal(vm.runInContext('assetSelectionAnchor', context), null);
+});
+
+test('Assets empty and failed reloads discard stale selection, cached order and range anchor', async () => {
+  const { context, selected } = assetSelectionContext();
+  vm.runInContext('async ' + functionSource('loadAssets', 'pastEolAssets'), context);
+  for (const fail of [false, true]) {
+    vm.runInContext("cachedAssets = [{id:'B'}];", context);
+    context.toggleCardSelect('B', { stopPropagation() {} });
+    context.apiFetch = async () => { if (fail) throw new Error('offline'); return []; };
+    await context.loadAssets();
+    assert.deepEqual(selected(), []);
+    assert.equal(vm.runInContext('cachedAssets.length', context), 0);
+    assert.equal(vm.runInContext('assetSelectionAnchor', context), null);
+  }
+});
+
+test('Assets filtered reload preserves only visible selection and uses the new sort order for ranges', async () => {
+  const { context, element, selected } = assetSelectionContext();
+  Object.assign(context, {
+    esc: String, jsArg: JSON.stringify, assetCard: () => '',
+    typeBadge: () => '', eolStatus: () => '', eolFlag: () => '',
+  });
+  vm.runInContext('async ' + functionSource('loadAssets', 'pastEolAssets'), context);
+  context.toggleCardSelect('D');
+  context.toggleCardSelect('B');
+  context.apiFetch = async () => ['B', 'C', 'A'].map(id => ({ id }));
+  await context.loadAssets();
+  assert.deepEqual(selected(), ['B']);
+  assert.equal(vm.runInContext('assetSelectionAnchor', context), null);
+  assert.ok(element('card-B').classList.contains('selected'));
+  assert.ok(element('trow-B').classList.contains('selected'));
+  context.toggleCardSelect('C', { shiftKey: true, stopPropagation() {} });
+  assert.deepEqual(selected(), ['B', 'C']);
+  context.toggleCardSelect('A', { shiftKey: true, stopPropagation() {} });
+  assert.deepEqual(selected(), ['B', 'C', 'A']);
+});
+
 function functionSource(name, nextName) {
   const start = source.indexOf('function ' + name + '(');
   const end = source.indexOf('\nfunction ' + nextName + '(', start);

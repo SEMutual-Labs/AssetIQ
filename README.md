@@ -177,7 +177,7 @@ new admin-only role.
 | Asset ID | Asset ID | Match existing items case-insensitively with surrounding whitespace ignored; set on new items only |
 | Type | Asset Type | Match the live list's allowed choices |
 | Serial | Serial Number | Text |
-| Status | Status | `active` → `Active`, `retired` → `Retired` |
+| Status | Status | `active` with an owner → `Active`; without an owner → `Unassigned`; `retired` → `Retired` |
 | Name | Make/Model | Text; verify this mapping in the preview |
 | Assigned To | Current Owner | Text, not a Person lookup |
 | Department | Department | Match the live list's allowed choices |
@@ -220,6 +220,11 @@ Number, Invoice Number, Days Owned, and other unmapped columns are not written.
 SharePoint still manages Modified and Modified By and recalculates its formulas.
 Previous Owner is not automatically maintained.
 
+**Active**, **Unassigned**, and **Retired** can transition between each other.
+Blank or whitespace-only Assigned To values count as unassigned. This changes
+Status but does not clear an existing Current Owner: the empty-field preservation
+rule still applies, and the preview warns about the retained owner.
+
 Choice labels are matched case-insensitively and written using the exact
 SharePoint label. Nonmatching values require an explicit translation; they are
 never guessed. If needed, add confirmed aliases in the private settings file:
@@ -235,8 +240,19 @@ define('SHAREPOINT_VALUE_MAPS', [
 ]);
 ```
 
-For example, `No Longer At SEM` is not automatically converted to `Not Assigned`.
+`No Longer At SEM` matches the same Department choice in SharePoint without an
+alias; it is not automatically converted to `Not Assigned`.
 Empty departments are preserved rather than assigned a default.
+
+### Selecting assets
+
+In the main Assets list, click a selection checkbox, then Shift-click another
+checkbox to select the inclusive range in the current filtered/sorted order.
+In selection mode, table rows and card headers also support Shift-click.
+Shift-clicking a selected asset deselects the range instead. Card and table
+selections stay in sync. Reloading, sorting, or filtering resets the range anchor
+and removes selections no longer in the displayed results; Select All and Cancel
+also reset the anchor. Normal row clicks outside selection mode still open editing.
 
 ### Preview, apply, and conflicts
 
