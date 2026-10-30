@@ -2550,11 +2550,11 @@ function renderSharePointPreview() {
   const output = document.getElementById('sharepoint-output');
   if (!sharepointPlan) return;
   const rows = sharepointPlan.rows;
-  output.innerHTML = `<p>${rows.filter(r => r.status === 'ready').length} ready, ${rows.filter(r => r.status === 'unchanged').length} unchanged, ${rows.filter(r => r.status === 'unmatched').length} unmatched, ${rows.filter(r => r.status === 'blocked').length} blocked. Preview expires in 15 minutes. Last Updated is set to the sync time on successful writes.</p>` +
+  output.innerHTML = `<p>${rows.filter(r => r.status === 'ready' && r.operation !== 'create').length} ready to update, ${rows.filter(r => r.status === 'ready' && r.operation === 'create').length} ready to create, ${rows.filter(r => r.status === 'unchanged').length} unchanged, ${rows.filter(r => r.status === 'blocked').length} blocked. New items are unchecked by default; select them explicitly to create. Preview expires in 15 minutes. Last Updated is set to the sync time on successful writes.</p>` +
     rows.map((row, i) => `<details style="margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:8px">
-      <summary>${row.status === 'ready' ? `<input type="checkbox" class="sharepoint-select" data-index="${i}" checked aria-label="Select ${esc(row.assetId)}"> ` : ''}${esc(row.assetId)} - ${esc(row.status)}</summary>
+      <summary>${row.status === 'ready' ? `<input type="checkbox" class="sharepoint-select" data-index="${i}" ${row.operation === 'create' ? '' : 'checked'} aria-label="Select ${esc(row.assetId)}"> ` : ''}${esc(row.assetId)} - ${esc(row.status)}${row.operation === 'create' ? ' (NEW ITEM)' : ''}</summary>
       ${row.error ? `<p>${esc(row.error)}</p>` : ''}
-      ${row.status === 'unmatched' ? '<p>No matching SharePoint Asset ID. No item will be created.</p>' : ''}
+      ${row.operation === 'create' ? '<p>No matching Asset ID exists. Once validation passes, explicitly selecting and applying this row creates a new SharePoint item instead of overwriting one.</p>' : ''}
       ${row.changes.map(c => `<div style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere"><strong>${esc(c.column)}</strong>: ${esc(String(c.before ?? '(empty)'))} &rarr; ${esc(String(c.after))}</div>`).join('')}
       ${row.warnings.map(w => `<p style="color:var(--muted)">${esc(w)}</p>`).join('')}
       <p id="sharepoint-result-${i}" role="status"></p>
@@ -2586,24 +2586,30 @@ async function applySharePoint() {
   if (sharepointBusy || !sharepointPlan) return;
   const selected = Array.from(document.querySelectorAll('.sharepoint-select:checked')).map(el => Number(el.dataset.index));
   if (!selected.length) { toast('Select at least one ready asset.', 'error'); return; }
-  if (!confirm(`Update ${selected.length} existing SharePoint item(s) using the previewed values? No items will be created or deleted.`)) return;
+  const createCount = selected.filter(index => sharepointPlan.rows[index].operation === 'create').length;
+  const updateCount = selected.length - createCount;
+  if (!confirm(`Update ${updateCount} existing SharePoint item(s) and create ${createCount} new item(s) using the previewed values? No items will be deleted.`)) return;
   sharepointBusy = true;
   document.getElementById('sharepoint-preview').disabled = true;
   document.getElementById('sharepoint-apply').disabled = true;
   document.querySelectorAll('.sharepoint-select').forEach(el => { el.disabled = true; });
   let updated = 0;
+  let created = 0;
   let failed = 0;
   try {
     for (const index of selected) {
       const row = sharepointPlan.rows[index];
       const result = document.getElementById(`sharepoint-result-${index}`);
-      result.textContent = 'Updating...';
+      result.textContent = row.operation === 'create' ? 'Creating...' : 'Updating...';
       try {
-        await apiFetch('api/sharepoint.php', {method:'POST', body:JSON.stringify({
+        const response = await apiFetch('api/sharepoint.php', {method:'POST', body:JSON.stringify({
           action:'apply', csrf:SHAREPOINT_CSRF, previewId:sharepointPlan.previewId, assetId:row.assetId,
         })});
-        result.textContent = 'Updated successfully.';
-        updated++;
+        const expected = row.operation === 'create' ? 'created' : 'updated';
+        if (response.status !== expected) throw new Error('Unexpected sync response. Check SharePoint and preview again before retrying.');
+        result.textContent = response.status === 'created' ? 'Created successfully.' : 'Updated successfully.';
+        if (response.status === 'created') created++;
+        else updated++;
       } catch (error) {
         result.textContent = error.message;
         failed++;
@@ -2612,7 +2618,7 @@ async function applySharePoint() {
     }
     const summary = document.createElement('p');
     summary.setAttribute('role', 'status');
-    summary.textContent = `${updated} updated, ${failed} failed. Generate a new preview before any further writes.`;
+    summary.textContent = `${updated} updated, ${created} created, ${failed} failed. Generate a new preview before any further writes.`;
     document.getElementById('sharepoint-output').prepend(summary);
     toast(summary.textContent, failed ? 'error' : 'success');
   } finally {
@@ -4233,11 +4239,11 @@ _sObs.observe(document.body,{childList:true,subtree:true});
   <div id="settings-tab-general">
   <div class="settings-section">
     <h2 class="settings-section-title">SharePoint Inventory Sync</h2>
-    <p class="settings-section-sub">Translate AssetIQ fields into existing Asset Register rows, matched by Asset ID. Preview only until you explicitly apply selected updates.</p>
-    <p style="margin:12px 0;font-size:13px;color:var(--muted)">Name maps to Make/Model. Empty values and SharePoint-only statuses are preserved. Choice values must match the list or a configured translation. Prices are copied without currency conversion. Calculated and unmapped columns are not written.</p>
+    <p class="settings-section-sub">Update matching Asset Register rows or create missing items by Asset ID. Preview only until you explicitly apply selected changes. New items require explicit selection.</p>
+    <p style="margin:12px 0;font-size:13px;color:var(--muted)">Name maps to Make/Model. Updates preserve empty values and SharePoint-only statuses. New items are blocked when required values are missing; fix these in AssetIQ first. Choice values must match the list or a configured translation. Prices are copied without currency conversion. Calculated and unmapped columns are not written.</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <button class="btn btn-ghost" id="sharepoint-preview" onclick="previewSharePoint()">Preview SharePoint Updates</button>
-      <button class="btn btn-primary" id="sharepoint-apply" onclick="applySharePoint()" disabled>Apply Selected Updates</button>
+      <button class="btn btn-ghost" id="sharepoint-preview" onclick="previewSharePoint()">Preview SharePoint Changes</button>
+      <button class="btn btn-primary" id="sharepoint-apply" onclick="applySharePoint()" disabled>Apply Selected Changes</button>
     </div>
     <div id="sharepoint-output" style="margin-top:16px;font-size:13px" aria-live="polite"></div>
   </div>

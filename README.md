@@ -135,11 +135,12 @@ Generate a .htpasswd file at: https://www.web2generators.com/apache-tools/htpass
 
 ## SharePoint Asset Register Write-back
 
-Settings includes **Preview SharePoint Updates** and **Apply Selected Updates**
+Settings includes **Preview SharePoint Changes** and **Apply Selected Changes**
 for the existing Asset Register list at
 `https://semutual.sharepoint.com/sites/AssetManagement/Lists/Asset%20Register/AllItems.aspx`.
-This is manual, one-way, update-only synchronization. It does not replace MySQL,
-import SharePoint changes, or create/delete SharePoint items.
+This is manual, one-way synchronization that updates matching items and can create
+missing items after explicit selection and confirmation. It does not replace MySQL,
+import SharePoint changes, or delete SharePoint items.
 
 ### Server configuration and permissions
 
@@ -173,7 +174,7 @@ new admin-only role.
 
 | AssetIQ | SharePoint | Behavior |
 |---|---|---|
-| Asset ID | Asset ID | Match only, case-insensitive with surrounding whitespace ignored |
+| Asset ID | Asset ID | Match existing items case-insensitively with surrounding whitespace ignored; set on new items only |
 | Type | Asset Type | Match the live list's allowed choices |
 | Serial | Serial Number | Text |
 | Status | Status | `active` → `Active`, `retired` → `Retired` |
@@ -241,16 +242,54 @@ Empty departments are preserved rather than assigned a default.
 
 1. Open Settings and generate a preview. This reads the list but makes no
    SharePoint writes.
-2. Expand rows to inspect before/after values and warnings. Unmatched Asset IDs
-   and duplicate matches are reported; duplicate matches cannot be applied.
-3. Deselect any ready assets you do not want to update, then apply and confirm.
+2. Expand rows to inspect before/after values and warnings. Missing Asset IDs
+   are labelled **NEW ITEM** with values to create; duplicate matches are blocked.
+3. Deselect any ready updates you do not want. New items are **unchecked by
+   default** and must be explicitly selected. Apply and confirm the separate
+   update/create counts.
    The preview is stored server-side in the signed-in session for 15 minutes.
-4. Each selected item is updated separately, so partial success is possible.
-   Per-item results remain visible. Successful updates are recorded as
-   **Synced to SharePoint** in AssetIQ's Activity Log.
+4. Each selected item is written separately, so partial success is possible.
+   Per-item results and separate updated/created counts remain visible.
+   Successful writes are recorded as **Synced to SharePoint** in AssetIQ's
+   Activity Log, including the operation and SharePoint item ID.
 
-The server checks the local asset snapshot and uses SharePoint's `If-Match`
-ETag to reject records changed since preview. A request cannot provide arbitrary
+### Creating missing items
+
+The existing site `write` grant also allows creation; no new application permission
+or private configuration setting is needed. The current column map, including
+`id => Title`, and configured choice translations apply to both operations.
+
+Creation uses the live list's required-column metadata. For this Asset Register,
+Asset Type, Serial Number, Status, Purchase Date, Purchase Price, and Last Updated
+are required. The sync supplies Last Updated, and Asset ID is always required by
+the integration even if SharePoint marks it optional. Missing user-supplied values
+block the new item and are listed together so they can be corrected in AssetIQ.
+Zero is a valid price; blank/null is not. No invented serials, dates, prices,
+default choices, or placeholder values are supplied.
+
+An unmapped required writable column also blocks creation and is identified as
+having no AssetIQ mapping; it requires a supported mapping/schema decision rather
+than guessing a value. Server-managed and calculated columns are left to SharePoint.
+Empty optional values are omitted with warnings, so SharePoint's configured defaults
+may apply. Existing-item updates still preserve empty AssetIQ values as before.
+
+Before creating, the server revalidates the current schema/translation and rechecks
+all list pages for the Asset ID. If an item has appeared since preview, the operation
+is rejected; it does not silently switch to updating it. A MySQL advisory lock
+serializes creates for the same normalized Asset ID across AssetIQ sessions using
+the same database. Lock failure blocks creation explicitly.
+
+These safeguards are not an atomic SharePoint upsert. For a strict uniqueness
+guarantee across external editors, other applications, or separate AssetIQ databases,
+have a SharePoint administrator enable **Enforce unique values** on the Asset ID
+column after checking existing duplicates. Without that constraint, an external
+writer could still create the same ID between the final check and POST. AssetIQ
+never automatically retries a create with an unknown outcome; preview again to
+check whether it succeeded before attempting another write.
+
+For updates, the server checks the local asset snapshot and uses SharePoint's `If-Match`
+ETag to reject records changed since preview. Creates also check the local snapshot.
+A request cannot provide arbitrary
 field values or item IDs: only the stored preview can be applied. A new preview
 replaces the old one; reloads, session expiry, or another tab generating a preview
 may invalidate it.
@@ -258,7 +297,8 @@ may invalidate it.
 Writes are not automatically retried, including throttling and timeouts, because
 an interrupted request may already have reached SharePoint. Wait when throttled,
 then generate a fresh preview to see what remains. An attempted row cannot be
-replayed from the same preview. An audit failure after a successful remote write
+replayed from the same preview: consumption is saved before remote writes.
+An audit failure after a successful remote write
 is explicitly reported as such, not as a safely retryable operation.
 
 PHP cURL and outbound HTTPS to Microsoft login and Graph are required. No extra
@@ -268,6 +308,7 @@ preview.
 
 References:
 [Update list item fields and conditional writes](https://learn.microsoft.com/en-us/graph/api/listitem-update?view=graph-rest-1.0),
+[Create a list item](https://learn.microsoft.com/en-us/graph/api/listitem-create?view=graph-rest-1.0),
 [Selected permissions and resource grants](https://learn.microsoft.com/en-us/graph/permissions-selected-overview),
 [Column definitions](https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0).
 

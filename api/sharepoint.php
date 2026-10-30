@@ -31,18 +31,19 @@ try {
     require_once __DIR__ . '/../db.php';
     $db = getDB();
     $select = 'SELECT id,name,type,serial,assigned_to,department,status,purchase_date,cost,notes,updated_at,archived FROM assets';
+    $columnMap = defined('SHAREPOINT_COLUMN_MAP') ? SHAREPOINT_COLUMN_MAP : [];
+    if (!is_array($columnMap)) throw new RuntimeException('SHAREPOINT_COLUMN_MAP must be an array.');
+    $valueMaps = defined('SHAREPOINT_VALUE_MAPS') ? SHAREPOINT_VALUE_MAPS : [];
+    if (!is_array($valueMaps)) throw new RuntimeException('SHAREPOINT_VALUE_MAPS must be an array.');
     if ($action === 'preview') {
         unset($_SESSION['sharepoint_preview']);
         $graph = new SharePointGraph();
         $listPath = $graph->listPath();
-        $columnMap = defined('SHAREPOINT_COLUMN_MAP') ? SHAREPOINT_COLUMN_MAP : [];
-        if (!is_array($columnMap)) throw new RuntimeException('SHAREPOINT_COLUMN_MAP must be an array.');
-        $columns = sharepointColumns($graph->collection($listPath . '/columns'), $columnMap);
+        $definitions = $graph->collection($listPath . '/columns');
+        $columns = sharepointColumns($definitions, $columnMap);
         $items = $graph->collection($listPath . '/items?$expand=fields&$top=200');
         $assets = $db->query($select . ' WHERE COALESCE(archived,0)=0 ORDER BY id')->fetchAll();
-        $valueMaps = defined('SHAREPOINT_VALUE_MAPS') ? SHAREPOINT_VALUE_MAPS : [];
-        if (!is_array($valueMaps)) throw new RuntimeException('SHAREPOINT_VALUE_MAPS must be an array.');
-        $rows = sharepointPreview($assets, $items, $columns, $valueMaps);
+        $rows = sharepointPreview($assets, $items, $columns, $definitions, $valueMaps);
         $id = bin2hex(random_bytes(24));
         $_SESSION['sharepoint_preview'] = [
             'id' => $id, 'expires' => time() + 900, 'listPath' => $listPath,
@@ -64,17 +65,38 @@ try {
         throw new InvalidArgumentException('This asset is not available to apply. Preview again.');
     }
     $row = $plan['rows'][$assetId];
+    if (!in_array($row['operation'] ?? '', ['update', 'create'], true)) {
+        sharepointRespond(['error' => 'This preview uses an older sync format. Generate a new preview.'], 409);
+    }
+    // Persist consumption before any remote write, including when a request times out.
+    $_SESSION['sharepoint_preview']['rows'][$assetId]['status'] = 'attempted';
+    if (!session_write_close()) throw new RuntimeException('Could not save the consumed preview. No write was attempted.');
     $stmt = $db->prepare($select . ' WHERE id=?');
     $stmt->execute([$assetId]);
     $asset = $stmt->fetch();
     if (!$asset) sharepointRespond(['error' => 'AssetIQ record no longer exists. Preview again.'], 409);
     $graph = new SharePointGraph();
-    // Consume before the remote write: an interrupted response must never replay a write.
-    $_SESSION['sharepoint_preview']['rows'][$assetId]['status'] = 'attempted';
-    $patch = sharepointApplyRow([$graph, 'call'], $plan['listPath'], $row, $asset, $plan['lastUpdatedColumn'], gmdate('Y-m-d\TH:i:s\Z'));
+    $syncTime = gmdate('Y-m-d\TH:i:s\Z');
+    if ($row['operation'] === 'create') {
+        $result = sharepointWithCreateLock($db, $plan['listPath'], $assetId, function () use ($graph, $plan, $row, $asset, $columnMap, $valueMaps, $syncTime): array {
+            $definitions = $graph->collection($plan['listPath'] . '/columns');
+            $columns = sharepointColumns($definitions, $columnMap);
+            return sharepointCreateRow($graph, $plan['listPath'], $row, $asset, $columns, $definitions, $valueMaps, $plan['lastUpdatedColumn'], $syncTime);
+        });
+        $itemId = $result['itemId'];
+        $patch = $result['patch'];
+        $status = 'created';
+    } else {
+        $patch = sharepointApplyRow([$graph, 'call'], $plan['listPath'], $row, $asset, $plan['lastUpdatedColumn'], $syncTime);
+        $itemId = $row['itemId'];
+        $status = 'updated';
+    }
     $user = auth_user();
     try {
-        $audit = ['SharePoint Item ID' => ['from' => null, 'to' => $row['itemId']]];
+        $audit = [
+            'SharePoint Item ID' => ['from' => null, 'to' => $itemId],
+            'SharePoint Operation' => ['from' => null, 'to' => $status],
+        ];
         foreach ($row['changes'] as $change) $audit[$change['column']] = ['from' => $change['before'], 'to' => $change['after']];
         $audit['Last Updated'] = ['from' => null, 'to' => $patch[$plan['lastUpdatedColumn']]];
         $db->prepare('INSERT INTO asset_logs (asset_id,asset_name,action,changed_fields,performed_by) VALUES (?,?,?,?,?)')->execute([
@@ -83,10 +105,10 @@ try {
             $user['name'] ?? $user['email'] ?? 'Unknown',
         ]);
     } catch (PDOException $error) {
-        error_log('AssetIQ SharePoint update succeeded but audit failed: ' . $error->getMessage());
-        sharepointRespond(['error' => 'SharePoint was updated, but the local audit log failed. Do not retry; contact the administrator.'], 500);
+        error_log('AssetIQ SharePoint ' . $status . ' succeeded but audit failed: ' . $error->getMessage());
+        sharepointRespond(['error' => 'SharePoint item was ' . $status . ', but the local audit log failed. Do not retry; contact the administrator.'], 500);
     }
-    sharepointRespond(['assetId' => $assetId, 'status' => 'updated']);
+    sharepointRespond(['assetId' => $assetId, 'itemId' => $itemId, 'status' => $status]);
 } catch (InvalidArgumentException | JsonException $error) {
     sharepointRespond(['error' => $error->getMessage()], 400);
 } catch (Throwable $error) {

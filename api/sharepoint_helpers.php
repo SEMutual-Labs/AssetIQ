@@ -173,19 +173,20 @@ function sharepointSameValue(mixed $before, mixed $after, string $kind, array $c
     return (string)($before ?? '') === (string)$after;
 }
 
-function sharepointTranslate(array $asset, array $fields, array $columns, array $valueMaps = []): array {
+function sharepointTranslate(array $asset, array $fields, array $columns, array $valueMaps = [], bool $creating = false): array {
     $patch = [];
     $changes = [];
     $warnings = [];
     foreach (sharepointMapping() as $source => [$label, $kind]) {
-        // The key identifies a row; AssetIQ timestamps are not SharePoint sync timestamps.
-        if ($source === 'id' || $source === 'updated_at') continue;
+        if (($source === 'id' && !$creating) || $source === 'updated_at') continue;
         $column = $columns[$source];
         $internal = $column['name'];
         $before = $fields[$internal] ?? null;
         $value = $asset[$source] ?? null;
         if ($value === null || (is_string($value) && trim($value) === '')) {
-            $warnings[] = $label . ': empty AssetIQ value; existing SharePoint value preserved.';
+            $warnings[] = $label . ($creating
+                ? ': empty AssetIQ value; optional column omitted.'
+                : ': empty AssetIQ value; existing SharePoint value preserved.');
             continue;
         }
         if ($source === 'status') {
@@ -224,7 +225,29 @@ function sharepointAssetHash(array $asset): string {
     return hash('sha256', json_encode($asset, JSON_THROW_ON_ERROR));
 }
 
-function sharepointPreview(array $assets, array $items, array $columns, array $valueMaps = []): array {
+function sharepointCreateFields(array $asset, array $columns, array $definitions, array $valueMaps = []): array {
+    $sources = [];
+    foreach ($columns as $source => $column) $sources[$column['name']] = $source;
+    $missing = [];
+    foreach ($definitions as $column) {
+        if (empty($column['required']) || !empty($column['readOnly']) || isset($column['calculated'])) continue;
+        $source = $sources[$column['name']] ?? null;
+        if ($source === 'updated_at') continue;
+        $value = $source === null ? null : ($asset[$source] ?? null);
+        if ($value === null || (is_string($value) && trim($value) === '')) {
+            $missing[] = ($column['displayName'] ?? $column['name'])
+                . ($source === null ? ' (no AssetIQ mapping)' : '');
+        }
+    }
+    if (trim((string)($asset['id'] ?? '')) === '') $missing[] = 'Asset ID';
+    if ($missing !== []) {
+        throw new InvalidArgumentException('Cannot create: missing required values: ' . implode(', ', array_unique($missing))
+            . '. Fill mapped values in AssetIQ; unmapped required columns need a supported mapping before creation.');
+    }
+    return sharepointTranslate($asset, [], $columns, $valueMaps, true);
+}
+
+function sharepointPreview(array $assets, array $items, array $columns, array $definitions, array $valueMaps = []): array {
     $index = [];
     $key = $columns['id']['name'];
     foreach ($items as $item) {
@@ -233,11 +256,21 @@ function sharepointPreview(array $assets, array $items, array $columns, array $v
     }
     $rows = [];
     foreach ($assets as $asset) {
-        $row = ['assetId' => $asset['id'], 'status' => 'unmatched', 'changes' => [], 'warnings' => []];
+        $row = ['assetId' => $asset['id'], 'status' => 'blocked', 'operation' => 'update', 'changes' => [], 'warnings' => []];
         $matches = $index[strtolower(trim($asset['id']))] ?? [];
         if (count($matches) > 1) {
             $row['status'] = 'blocked';
             $row['error'] = 'Multiple SharePoint rows have this Asset ID.';
+        } elseif ($matches === []) {
+            $row['operation'] = 'create';
+            try {
+                $row = array_merge($row, sharepointCreateFields($asset, $columns, $definitions, $valueMaps));
+                $row['status'] = 'ready';
+                $row['assetHash'] = sharepointAssetHash($asset);
+            } catch (InvalidArgumentException $error) {
+                $row['status'] = 'blocked';
+                $row['error'] = $error->getMessage();
+            }
         } elseif (count($matches) === 1) {
             $item = $matches[0];
             try {
@@ -260,10 +293,48 @@ function sharepointPreview(array $assets, array $items, array $columns, array $v
 }
 
 function sharepointApplyRow(callable $graph, string $listPath, array $row, array $asset, string $lastUpdatedColumn, string $syncTime): array {
-    if (($row['status'] ?? '') !== 'ready' || empty($row['patch']) || empty($row['etag'])) throw new InvalidArgumentException('This preview row is not ready to apply.');
+    if (($row['status'] ?? '') !== 'ready' || ($row['operation'] ?? 'update') !== 'update' || empty($row['patch']) || empty($row['etag'])) throw new InvalidArgumentException('This preview row is not ready to apply.');
     if (!hash_equals($row['assetHash'], sharepointAssetHash($asset))) throw new RuntimeException('AssetIQ record changed after preview. Preview again.');
     $patch = $row['patch'];
     $patch[$lastUpdatedColumn] = $syncTime;
     $graph('PATCH', $listPath . '/items/' . rawurlencode($row['itemId']) . '/fields', $patch, $row['etag']);
     return $patch;
+}
+
+function sharepointCreateRow(SharePointGraph $graph, string $listPath, array $row, array $asset, array $columns, array $definitions, array $valueMaps, string $lastUpdatedColumn, string $syncTime): array {
+    if (($row['status'] ?? '') !== 'ready' || ($row['operation'] ?? '') !== 'create' || empty($row['patch'])) {
+        throw new InvalidArgumentException('This preview row is not ready to create.');
+    }
+    if (!hash_equals($row['assetHash'], sharepointAssetHash($asset))) throw new RuntimeException('AssetIQ record changed after preview. Preview again.');
+    $translated = sharepointCreateFields($asset, $columns, $definitions, $valueMaps);
+    if ($translated['patch'] !== $row['patch'] || $columns['updated_at']['name'] !== $lastUpdatedColumn) {
+        throw new RuntimeException('SharePoint mapping or schema changed after preview. Preview again.');
+    }
+    $key = $columns['id']['name'];
+    foreach ($graph->collection($listPath . '/items?$expand=fields&$top=200') as $item) {
+        if (strcasecmp(trim((string)($item['fields'][$key] ?? '')), trim($asset['id'])) === 0) {
+            throw new RuntimeException('This Asset ID now exists in SharePoint. Nothing was created or updated. Preview again.');
+        }
+    }
+    $patch = $row['patch'];
+    $patch[$lastUpdatedColumn] = $syncTime;
+    $created = $graph->call('POST', $listPath . '/items', ['fields' => $patch]);
+    if (empty($created['id']) || !is_string($created['id'])) {
+        throw new RuntimeException('SharePoint may have created the item, but did not return its ID. Preview again before retrying.');
+    }
+    return ['itemId' => $created['id'], 'patch' => $patch];
+}
+
+function sharepointWithCreateLock(PDO $db, string $listPath, string $assetId, callable $create): array {
+    $lockName = hash('sha256', 'sharepoint-create:' . $listPath . ':' . strtolower(trim($assetId)));
+    $lock = $db->prepare('SELECT GET_LOCK(?, 0)');
+    $lock->execute([$lockName]);
+    if ((int)$lock->fetchColumn() !== 1) throw new RuntimeException('Another creation for this Asset ID is in progress, or the database cannot acquire the sync lock. Preview again later.');
+    try {
+        return $create();
+    } finally {
+        $release = $db->prepare('SELECT RELEASE_LOCK(?)');
+        $release->execute([$lockName]);
+        if ((int)$release->fetchColumn() !== 1) error_log('AssetIQ SharePoint creation lock could not be released: ' . $lockName);
+    }
 }
